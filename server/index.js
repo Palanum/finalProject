@@ -1,3 +1,5 @@
+require('dotenv').config();
+
 const express = require('express');
 const cors = require('cors');
 
@@ -13,10 +15,10 @@ app.use(cors());
 app.use(express.json());
 
 // Mount routes with prefixes:
-app.use('/api', main);             // e.g., GET /api/health
-app.use('/api/users', user);       // e.g., POST /api/users/login
-app.use('/api/recipes', recipe);   // e.g., GET /api/recipes/
-app.use('/api/outsource', outsource); // e.g., GET /api/outsource/
+app.use('/api', mainRoute);             // e.g., GET /api/health
+app.use('/api/users', userRoute);       // e.g., POST /api/users/login
+app.use('/api/recipes', recipeRoute);   // e.g., GET /api/recipes/
+app.use('/api/outsource', outsourceRoute); // e.g., GET /api/outsource/
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

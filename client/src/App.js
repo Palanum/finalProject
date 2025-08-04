@@ -1,6 +1,17 @@
 import { useEffect, useState } from 'react';
-import logo from './logo.svg';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { library } from '@fortawesome/fontawesome-svg-core'
+
+/* import all the icons in Free Solid, Free Regular, and Brands styles */
+import { fas } from '@fortawesome/free-solid-svg-icons'
+import { far } from '@fortawesome/free-regular-svg-icons'
+import { fab } from '@fortawesome/free-brands-svg-icons'
+
+import NavBar from './components/Navbar';
+
 import './App.css';
+
+library.add(fas, far, fab)
 
 function App() {
   const [apiMessage, setApiMessage] = useState("");
@@ -14,14 +25,16 @@ function App() {
 
   return (
     <div className="App">
+      <NavBar />
       <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
         <p>
           Edit <code>src/App.js</code> and save to reload.
         </p>
         <p>
           {apiMessage ? apiMessage : "Loading..."}
+          <FontAwesomeIcon icon="fa-solid fa-house" />
         </p>
+        
         <a
           className="App-link"
           href="https://reactjs.org"
