@@ -4,6 +4,8 @@
     --btn-g-hover:hsl(94, 33%, calc(51% - var(--darker)));
     --btn-y:hsl(42, 93%, 64%);
     --btn-y-hover:hsl(42, 93%, calc(64% - var(--darker)));
+    --btn-w:hsl(0, 0%, 100%);
+    --btn-w-hover:hsl(0, 0%, calc(100% - var(--darker)));
 }
 .btn {
     display: flex;
@@ -15,7 +17,7 @@
     user-select: none;
     -webkit-user-select: none;
     touch-action: manipulation;
-    padding: .3rem 1rem;
+    padding: .5rem 1rem;
     text-align: center;
     text-decoration-thickness: auto;
 }
@@ -30,9 +32,14 @@
 .btn.green-btn:hover {
   background-color:var(--btn-g-hover);
 }
-
-@media (min-width: 768px) {
-  .btn {
-    padding: .7rem 2rem;
-  }
+.btn.white-btn{
+  background-color: var(--btn-w);
+  color: var(--text-yellow);
+  border: var(--border-2-solid) var(--text-yellow);
+  text-decoration: none var(--white) solid;
 }
+
+.btn.white-btn:hover {
+  background-color:var(--btn-w-hover);
+}
+

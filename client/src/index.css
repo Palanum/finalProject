@@ -23,8 +23,9 @@ a {
 }
 
 html{
-  font-size: 16px;
+  font-size: 14px;
   background-color: var(--bg-main);
+  color: var(--text-yellow);
 }
 /* Set default font settings */
 body {
@@ -145,9 +146,12 @@ input:focus, textarea:focus {
 .po-rel{position: relative;}
 .po-stick{position: sticky;}
 
-
+.sub-text{ color: var(--sub-text);}
+.bold-text{color: var(--head-text );}
+.green-text{color: var(--text-green);}
 :root {
-  --yellow-yolk: #F9C74F;
+  --yellow-yolk: hsl(42, 93%, 64%);
+  --yellow-yolk-darker:hsl(42, 93%, 54%);
   --bg-main:#FAF9F6;
   --bg-yellow:#fef3c7;
   --bg-green:#f0fdf4;
@@ -163,5 +167,11 @@ input:focus, textarea:focus {
   --card-bg:#FFFDF8;
   --white:#fff;
   --black:#000;
+  --border-1-solid:1px solid;
+  --border-2-solid:2px solid;
+  --head-h:4rem;
 }
 
+@media (min-width: 768px) {
+ html {font-size: 16px;}
+}

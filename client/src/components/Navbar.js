@@ -1,10 +1,20 @@
 import './NavBar.css';
 import logo from '../assets/images/rezcook_logo.png';
-import { Loginbtn } from './Button';
+import { Loginbtn,Sharebtn } from './Button';
 import { Link } from 'react-router-dom';
-import { useEffect, useState } from 'react';
+import { useEffect, useState,useRef } from 'react';
 
-function NavBar() {
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { library } from '@fortawesome/fontawesome-svg-core'
+
+/* import all the icons in Free Solid, Free Regular, and Brands styles */
+import { fas } from '@fortawesome/free-solid-svg-icons'
+import { far } from '@fortawesome/free-regular-svg-icons'
+import { fab } from '@fortawesome/free-brands-svg-icons'
+
+library.add(fas, far, fab)
+
+export default function NavBar({ isLoggedIn}) {
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
 
@@ -12,11 +22,9 @@ function NavBar() {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
 
-      if (currentScrollY > lastScrollY) {
-        // Scrolling down
+      if (currentScrollY > 64 && currentScrollY > lastScrollY) {
         setShowNavbar(false);
       } else {
-        // Scrolling up
         setShowNavbar(true);
       }
 
@@ -24,27 +32,73 @@ function NavBar() {
     };
 
     window.addEventListener('scroll', handleScroll);
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll);
-    };
+    return () => window.removeEventListener('scroll', handleScroll);
   }, [lastScrollY]);
 
   return (
     <nav className={`nav-bar ${showNavbar ? 'visible' : 'hidden'}`}>
-      <div className="nav-content">
-        <h1 className="nav-logo">
-          <img src={logo} className="App-logo" alt="logo" />
-        </h1>
-        <ul className="nav-links">
-          <li><Link to="/">Home</Link></li>
-          <li><Link to="/recipes">Recipes</Link></li>
-          <li><Link to="/profile">Profile</Link></li>
-          <li><Loginbtn /></li>
-        </ul>
-      </div>
-    </nav>
+  <div className="nav-content">
+    {/* Left group */}
+    <ul className="nav-group nav-left">
+      <li><Link to="/">หน้าหลัก</Link></li>
+      <li><Link to="/recipes">ค้นหา <FontAwesomeIcon icon="fa-solid fa-magnifying-glass" /></Link></li>
+    </ul>
+
+    {/* Center logo */}
+    <div className="nav-logo">
+      <Link to="/">
+        <img src={logo} className="App-logo" alt="logo" />
+      </Link>
+    </div>
+
+    {/* Right group */}
+    <ul className="nav-group nav-right">
+      <li><Sharebtn /></li>
+      {isLoggedIn ? (
+        <>
+          <li><Link to="/profile/alarm"><FontAwesomeIcon icon="fa-solid fa-bell" /></Link></li>
+          <li><ProfileMenu/></li>
+        </>
+      ) : (
+        <li><Loginbtn /></li>
+      )}
+    </ul>
+  </div>
+</nav>
   );
 }
 
-export default NavBar;
+function ProfileMenu() {
+  const [open, setOpen] = useState(false);
+  const menuRef = useRef();
+
+  const toggleMenu = () => setOpen(!open);
+
+  // Close dropdown if clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  return (
+    <div className="profile-menu-wrapper" ref={menuRef}>
+      <button onClick={toggleMenu} className="profile-button">
+        <FontAwesomeIcon icon="fa-solid fa-user" />
+      </button>
+
+      {open && (
+        <ul className="profile-dropdown">
+          <li><Link to="/profile">My Profile</Link></li>
+          <li><Link to="/profile/alarm">Notifications</Link></li>
+          <li><Link to="/settings">Settings</Link></li>
+          <li><Link to="/logout">Log out</Link></li>
+        </ul>
+      )}
+    </div>
+  );
+}

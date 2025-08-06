@@ -1,0 +1,27 @@
+.login-form-section{
+    display: flex;
+    flex:1;
+    justify-content: center;
+    align-items: center;
+}
+.form {
+    width: 30ch;
+}
+.form .heading{
+    color: var(--head-text);
+}
+.form input{
+    background-color: var(--input-bg);
+    border: var(--border-1-solid) var(--border-cl);
+    color: var(--text-yelow);
+}
+.form input::placeholder{
+    color: var(--place-holder-cl);
+}
+.form a{
+    color: var(--text-green);
+    font-weight: bold;
+}
+.form a:hover{
+    text-decoration: underline;
+}
