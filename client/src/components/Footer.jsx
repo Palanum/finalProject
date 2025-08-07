@@ -12,7 +12,7 @@ library.add(fas, far, fab)
 function Footer() {
   return (
     <div className="flex just-center align-center foot-container">
-      <p>Explore delicious recipes and share your own.</p>
+      <span className='credit-text'>© 2025 Rezcooking | ค้นพบสูตรอาหารแสนอร่อย ทุกวัน ทุกมื้อ</span>
     </div>
   );
 }

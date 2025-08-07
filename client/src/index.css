@@ -26,6 +26,7 @@ html{
   font-size: 14px;
   background-color: var(--bg-main);
   color: var(--text-yellow);
+  min-width: 640px;
 }
 /* Set default font settings */
 body {
@@ -35,6 +36,34 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+h1 {
+  font-size: clamp(2rem, 4vw + 1rem, 3rem);
+}
+
+h2 {
+  font-size: clamp(1.75rem, 3vw + 0.75rem, 2.5rem);
+}
+
+h3 {
+  font-size: clamp(1.5rem, 2.5vw + 0.5rem, 2rem);
+}
+
+h4 {
+  font-size: clamp(1.25rem, 2vw + 0.5rem, 1.5rem);
+}
+
+h5 {
+  font-size: clamp(1rem, 1.5vw + 0.25rem, 1.25rem);
+}
+
+h6 {
+  font-size: clamp(0.875rem, 1vw + 0.25rem, 1rem);
+}
+p,span {
+  font-size: clamp(1rem, 1.2vw + 0.5rem, 1.125rem);
+}
+
+
 
 /* Set image to be responsive */
 img {
@@ -149,6 +178,12 @@ input:focus, textarea:focus {
 .sub-text{ color: var(--sub-text);}
 .bold-text{color: var(--head-text );}
 .green-text{color: var(--text-green);}
+
+.round{border-radius: 999px;}
+.text-left{text-align: left;}
+.text-right{text-align: right;}
+.text-center{text-align: center;}
+.text-just{text-align:justify;}
 :root {
   --yellow-yolk: hsl(42, 93%, 64%);
   --yellow-yolk-darker:hsl(42, 93%, 54%);

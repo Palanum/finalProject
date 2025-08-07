@@ -45,18 +45,19 @@ export default function NavBar({ isLoggedIn}) {
     </ul>
 
     {/* Center logo */}
-    <div className="nav-logo">
+    <div className="flex-1 logo-container">
       <Link to="/">
-        <img src={logo} className="App-logo" alt="logo" />
+        <div className="nav-logo">
+            <img src={logo} className="App-logo" alt="logo" />
+        </div>
       </Link>
     </div>
-
     {/* Right group */}
     <ul className="nav-group nav-right">
       <li><Sharebtn /></li>
       {isLoggedIn ? (
         <>
-          <li><Link to="/profile/alarm"><FontAwesomeIcon icon="fa-solid fa-bell" /></Link></li>
+          <li><Link to="/profile#alarm"><FontAwesomeIcon icon="fa-solid fa-bell" /></Link></li>
           <li><ProfileMenu/></li>
         </>
       ) : (
@@ -93,9 +94,10 @@ function ProfileMenu() {
 
       {open && (
         <ul className="profile-dropdown">
-          <li><Link to="/profile">My Profile</Link></li>
-          <li><Link to="/profile/alarm">Notifications</Link></li>
-          <li><Link to="/settings">Settings</Link></li>
+          <li><Link to="/profile#profile">My Profile</Link></li>
+          <li><Link to="/profile#favorite">Favorite</Link></li>
+          <li><Link to="/profile#myRecipe">My Recipes</Link></li>
+          <li><Link to="/profile#alarm">Notifications</Link></li>
           <li><Link to="/logout">Log out</Link></li>
         </ul>
       )}

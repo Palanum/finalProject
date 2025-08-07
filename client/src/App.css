@@ -3,3 +3,12 @@
     display: flex;
     flex-flow: column;
 }
+.normal-input{
+    background-color: var(--input-bg);
+    border: var(--border-1-solid) var(--border-cl);
+    color: var(--text-yelow);
+    padding: .4rem 1rem;
+}
+.normal-input::placeholder{
+    color: var(--place-holder-cl);
+}

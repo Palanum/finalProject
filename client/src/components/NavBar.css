@@ -14,10 +14,11 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  position: relative;
 }
 
 .nav-logo {
-  height: var(--head-h);
+  height: 100%;
   width: 11rem;
   display: flex;
   justify-content: center;
@@ -25,6 +26,13 @@
   background-color: var(--white);
   border: var(--border-1-solid) var(--text-yellow);
   border-radius:999px ;
+  position: absolute;
+  left: 50%;
+  top: 0;
+  transform: translateX(-50%);
+}
+.logo-container{
+  height: var(--head-h);
 }
 .App-logo {
     width: 7rem;

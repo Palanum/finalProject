@@ -27,11 +27,15 @@ function Sharebtn() {
   );
 }
 function Normalbtn({ NavLink, styleValue, text }) {
-  const navigate = useNavigate();
   const stylebtn = styleValue === 'green' ? 'green-btn' : 'white-btn';
-
+  const navigate = useNavigate();
+  const handleClick = () => {
+    if (NavLink) {
+      navigate(NavLink);
+    }
+  };
   return (
-    <button className={`btn ${stylebtn}`} onClick={() => navigate(NavLink)}>
+    <button className={`btn ${stylebtn}`} onClick={() => handleClick}>
       {text}
     </button>
   );

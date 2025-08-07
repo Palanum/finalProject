@@ -9,11 +9,11 @@ function Login() {
             <h2 className='heading'>เข้าสู่ระบบ</h2>
             <div className="flex flex-column gap-1">
                 <label htmlFor="username">ชื่อผู้ใช้</label>
-                <input type="text" id='username' placeholder='ชื่อผู้ใช้'/>
+                <input type="text" id='username' placeholder='ชื่อผู้ใช้' required/>
             </div>
             <div className="flex flex-column gap-1">
                 <label htmlFor="password">รหัสผ่าน</label>
-                <input type="password" id="password" placeholder='รหัสผ่าน'/>
+                <input type="password" id="password" placeholder='รหัสผ่าน' required/>
             </div>
             <div className="flex just-center">
               <Normalbtn  NavLink="/login" styleValue="green" text="เข้าสู่ระบบ" />
@@ -33,12 +33,16 @@ function Register() {
             <h2 className='heading'>สมัครสมาชิก</h2>
             <div className="flex flex-column gap-1">
                 <label htmlFor="username">ชื่อผู้ใช้</label>
-                <input type="text" id='username' placeholder='ชื่อผู้ใช้'/>
+                <input type="text" id='username' placeholder='ชื่อผู้ใช้' required/>
+            </div>
+            <div className="flex flex-column gap-1">
+                <label htmlFor="eMail">E-mail</label>
+                <input type="e-mail" id='eMail' placeholder='E-mail'required/>
             </div>
             <div className="flex flex-column gap-1">
                 <label htmlFor="password">รหัสผ่าน</label>
-                <input type="password" id="password" placeholder='รหัสผ่าน'/>
-                <input type="password" id="password" placeholder='ยืนยันรหัสผ่าน'/>
+                <input type="password" id="password" placeholder='รหัสผ่าน' required/>
+                <input type="password" id="password" placeholder='ยืนยันรหัสผ่าน'required/>
             </div>
             <div className="flex just-center">
               <Normalbtn  NavLink={"/login"} styleValue='green' text="สมัครสมาชิก" />
