@@ -26,12 +26,12 @@ function Sharebtn() {
     </button>
   );
 }
-function Normalbtn({ link, style, text }) {
+function Normalbtn({ NavLink, styleValue, text }) {
   const navigate = useNavigate();
-  const stylebtn = style === 'green' ? 'green-btn' : 'white-btn';
+  const stylebtn = styleValue === 'green' ? 'green-btn' : 'white-btn';
 
   return (
-    <button className={`btn ${stylebtn}`} onClick={() => navigate(link)}>
+    <button className={`btn ${stylebtn}`} onClick={() => navigate(NavLink)}>
       {text}
     </button>
   );

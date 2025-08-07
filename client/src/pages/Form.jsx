@@ -16,7 +16,7 @@ function Login() {
                 <input type="password" id="password" placeholder='รหัสผ่าน'/>
             </div>
             <div className="flex just-center">
-              <Normalbtn  link="/login" style="green" text="เข้าสู่ระบบ" />
+              <Normalbtn  NavLink="/login" styleValue="green" text="เข้าสู่ระบบ" />
             </div>
             <div className="flex gap-1 just-center">
                 <p>ยังไม่มีบัญชีใช่ไหม</p>
@@ -41,7 +41,7 @@ function Register() {
                 <input type="password" id="password" placeholder='ยืนยันรหัสผ่าน'/>
             </div>
             <div className="flex just-center">
-              <Normalbtn  link="/login" style="green" text="สมัครสมาชิก" />
+              <Normalbtn  NavLink={"/login"} styleValue='green' text="สมัครสมาชิก" />
             </div>
             <div className="flex gap-1 just-center">
                 <p>มีบัญชีแล้วใช่ไหม</p>
