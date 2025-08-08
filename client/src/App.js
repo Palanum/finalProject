@@ -1,5 +1,6 @@
 
 import { Routes, Route } from 'react-router-dom';
+import React, { useContext } from 'react'
 
 import NavBar from './components/Navbar';
 import Footer from './components/Footer';
@@ -8,9 +9,11 @@ import Home from './pages/Home';
 import { Login, Register } from './pages/Form'
 import Profile from "./pages/Profile";
 import Search from './pages/Search';
+import { AuthContext } from './context/AuthContext';
 
 function App() {
-  const isLoggedIn = true;
+  const { user } = useContext(AuthContext);
+  const isLoggedIn = !!user;
   return (
     <div className="App">
       <NavBar isLoggedIn={isLoggedIn}/>
