@@ -1,8 +1,6 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
 
-require('dotenv').config();
-
 const router = express.Router();
 
 const pool = require('../db');
