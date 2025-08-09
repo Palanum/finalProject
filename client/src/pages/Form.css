@@ -4,9 +4,15 @@
     justify-content: center;
     align-items: center;
 }
+
 .form {
-    width: 30ch;
+    width: 40ch;
+    padding: 2rem;
+    border: var(--border-1-solid) none;
+    border-radius: 2rem;
+    box-shadow: var(--shadow-1);
 }
+
 .form .heading{
     color: var(--head-text);
 }

@@ -1,6 +1,6 @@
 import React, { useState, useContext } from 'react'
 import './Form.css'
-import '../components/button.css'
+import '../components/Button.css'
 import { useNavigate, Link } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
@@ -23,10 +23,10 @@ const handleSubmit = async (e) => {
       body: JSON.stringify({ username, password }),
     });
 
-    console.log('Response status:', res.status);
+    // console.log('Response status:', res.status);
 
     const text = await res.text();  // read raw response text first
-    console.log('Raw response:', text);
+    // console.log('Raw response:', text);
 
     if (!text) {
       setError('Empty response from server');
@@ -47,7 +47,7 @@ const handleSubmit = async (e) => {
     }
 
     login(data.user);
-    navigate('/profile');
+    navigate('/');
   } catch (err) {
     console.error('Login fetch error:', err);
     setError('Network error');
@@ -91,8 +91,8 @@ const handleSubmit = async (e) => {
             เข้าสู่ระบบ
           </button>
         </div>
-          
-        <div className="flex gap-1 just-center">
+
+        <div className="flex gap-1 just-center align-center">
           <p>ยังไม่มีบัญชีใช่ไหม</p>
           <Link to="/register">สมัครสมาชิก</Link>
         </div>
@@ -100,9 +100,10 @@ const handleSubmit = async (e) => {
     </div>
   );
 }
+
 function Register() {
   const navigate = useNavigate();
-
+  const { login } = useContext(AuthContext);
   const [form, setForm] = useState({
     username: '',
     email: '',
@@ -133,7 +134,6 @@ function Register() {
           username: form.username,
           email: form.email,
           password: form.password,
-          nickname: form.username,  // or add nickname field if you want
         }),
       });
 
@@ -142,8 +142,10 @@ function Register() {
       if (!res.ok) {
         setError(data.error || 'Registration failed');
       } else {
+
+        login(data.user);
         // Registration successful - navigate or do something
-        navigate('/login');
+        navigate('/');
       }
     } catch (err) {
       setError('Server error');
@@ -152,53 +154,53 @@ function Register() {
 
   return (
     <div className="login-form-section">
-      <form className="flex flex-column gap-1 form" onSubmit={handleSubmit}>
-        <h2 className="heading">สมัครสมาชิก</h2>
+      <form className="flex flex-column gap-2 form" onSubmit={handleSubmit}>
+        <h2 className="heading text-center">สมัครสมาชิก</h2>
 
-        <div className="flex flex-column gap-1">
-          <label htmlFor="username">ชื่อผู้ใช้</label>
+        <div className="flex align-center gap-1">
+          <label className='flex-1' htmlFor="username">ชื่อผู้ใช้</label>
           <input
             type="text"
             id="username"
             placeholder="ชื่อผู้ใช้"
             value={form.username}
-            onChange={() => handleChange}
+            onChange={handleChange}
             required
           />
         </div>
 
-        <div className="flex flex-column gap-1">
-          <label htmlFor="email">E-mail</label>
+        <div className="flex align-center gap-1">
+          <label className='flex-1' htmlFor="email">E-mail</label>
           <input
             type="email"
             id="email"
             placeholder="E-mail"
             value={form.email}
-            onChange={()=>handleChange}
+            onChange={handleChange}
             required
           />
         </div>
 
-        <div className="flex flex-column gap-1">
-          <label htmlFor="password">รหัสผ่าน</label>
+        <div className="flex align-center gap-1">
+          <label className='flex-1' htmlFor="password">รหัสผ่าน</label>
           <input
             type="password"
             id="password"
             placeholder="รหัสผ่าน"
             value={form.password}
-            onChange={()=>handleChange}
+            onChange={handleChange}
             required
           />
         </div>
 
-        <div className="flex flex-column gap-1">
-          <label htmlFor="confirmPassword">ยืนยันรหัสผ่าน</label>
+        <div className="flex align-center gap-1">
+          <label className='flex-1' htmlFor="confirmPassword">ยืนยันรหัสผ่าน</label>
           <input
             type="password"
             id="confirmPassword"
             placeholder="ยืนยันรหัสผ่าน"
             value={form.confirmPassword}
-            onChange={()=>handleChange}
+            onChange={handleChange}
             required
           />
         </div>
@@ -211,7 +213,7 @@ function Register() {
           </button>
         </div>
 
-        <div className="flex gap-1 just-center">
+        <div className="flex gap-1 just-center align-center">
           <p>มีบัญชีแล้วใช่ไหม</p>
           <Link to="/login">เข้าสู่ระบบ</Link>
         </div>
@@ -219,4 +221,39 @@ function Register() {
     </div>
   );
 }
-export {Login,Register} 
+
+function Changepass() {
+  return (
+    <div className="change-pass-form-section">
+      <form className="flex flex-column gap-1 form">
+        <h2 className="heading">เปลี่ยนรหัสผ่าน</h2>
+        <div className="flex flex-column gap-1">
+          <label htmlFor="oldPassword">รหัสผ่านเก่า</label>
+          <input
+            type="password"
+            id="oldPassword"
+            placeholder="รหัสผ่านเก่า"
+            required
+          />
+        </div>
+        <div className="flex flex-column gap-1">
+          <label htmlFor="newPassword">รหัสผ่านใหม่</label>
+          <input
+            type="password"
+            id="newPassword"
+            placeholder="รหัสผ่านใหม่"
+            required
+          />
+        </div>
+
+        <div className="flex just-center">
+          <button type="submit" className="btn green-btn">
+            เปลี่ยนรหัสผ่าน
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+export {Login,Register,Changepass} 

@@ -30,9 +30,9 @@ app.use(session({
   }
 }));
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.url}`);
-  console.log('Cookies:', req.headers.cookie);
-  console.log('Request headers size:', JSON.stringify(req.headers).length);
+  // console.log(`${req.method} ${req.url}`);
+  // console.log('Cookies:', req.headers.cookie);
+  // console.log('Request headers size:', JSON.stringify(req.headers).length);
   next();
 });
 
@@ -41,6 +41,11 @@ app.use('/api', mainRoute);             // e.g., GET /api/health
 app.use('/api/users', userRoute);       // e.g., POST /api/users/login
 app.use('/api/recipes', recipeRoute);   // e.g., GET /api/recipes/
 app.use('/api/outsource', outsourceRoute); // e.g., GET /api/outsource/
+
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);

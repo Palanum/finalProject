@@ -27,6 +27,7 @@ html{
   background-color: var(--bg-main);
   color: var(--text-yellow);
   min-width: 640px;
+  scroll-behavior: smooth;
 }
 /* Set default font settings */
 body {
@@ -205,6 +206,7 @@ input:focus, textarea:focus {
   --border-1-solid:1px solid;
   --border-2-solid:2px solid;
   --head-h:4rem;
+  --shadow-1:rgba(0, 0, 0, 0.15) 0px 5px 15px 0px;
 }
 
 @media (min-width: 768px) {

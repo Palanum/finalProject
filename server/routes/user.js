@@ -1,24 +1,18 @@
 const express = require('express');
 const bcrypt = require('bcrypt');
-const mysql = require('mysql2/promise');
+
 require('dotenv').config();
 
 const router = express.Router();
 
-// MySQL connection pool
-const pool = mysql.createPool({
-  host: process.env.DB_HOST || 'localhost',
-  user: process.env.DB_USER || 'root',
-  password: process.env.DB_PASS || '',
-  database: process.env.DB_NAME || 'mydb',
-});
+const pool = require('../db');
 
 // ===== REGISTER =====
 router.post('/register', async (req, res) => {
   try {
-    const { username, password, email, nickname } = req.body;
+    const { username, password, email } = req.body;
 
-    if (!username || !password || !email || !nickname) {
+    if ( !username || !password || !email ) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
@@ -26,6 +20,7 @@ router.post('/register', async (req, res) => {
       'SELECT id FROM users WHERE username = ? OR email = ?',
       [username, email]
     );
+
     if (existing.length > 0) {
       return res.status(400).json({ error: 'Username or email already taken' });
     }
@@ -36,9 +31,9 @@ router.post('/register', async (req, res) => {
     const status = 'normal';
 
     const [result] = await pool.query(
-      `INSERT INTO users (username, password_hash, email, nickname, stat_update, role, status)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
-      [username, password_hash, email, nickname, stat_update, role, status]
+      `INSERT INTO users (username, password_hash, email, stat_update, role, status)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [username, password_hash, email, stat_update, role, status]
     );
 
     res.json({ message: 'User registered successfully' });
@@ -50,7 +45,7 @@ router.post('/register', async (req, res) => {
 
 // ===== LOGIN =====
 router.post('/login', async (req, res) => {
-  console.log('Login request received:', req.body);
+  // console.log('Login request received:', req.body);
   try {
     const { username, password } = req.body;
     if (!username || !password) {
@@ -71,6 +66,7 @@ router.post('/login', async (req, res) => {
     req.session.user = {
       id: user.id,
       username: user.username,
+      email: user.email,
       role: user.role,
       status: user.status
     };
@@ -81,6 +77,7 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         username: user.username,
+        email:user.email,
         role: user.role,
         status: user.status
       }

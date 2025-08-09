@@ -1,5 +1,7 @@
-import './button.css';
+import './Button.css';
 import { useNavigate } from 'react-router-dom';
+import { useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { library } from '@fortawesome/fontawesome-svg-core'
 
@@ -18,14 +20,25 @@ function Loginbtn() {
     </button>
   );
 }
+
 function Sharebtn() {
-    const navigate = useNavigate();
+   const navigate = useNavigate();
+    const { user } = useContext(AuthContext); // Get user from context
+
+    const handleShare = () => {
+        if (user) {
+            navigate('/share');
+        } else {
+            navigate('/login');
+        }
+    };
   return (
-    <button className='btn white-btn' onClick={() => navigate('/share')}>
+    <button className='btn white-btn' onClick={() => handleShare()}>
         แชร์สูตรของฉัน +
     </button>
   );
 }
+
 function Normalbtn({ NavLink, styleValue, text }) {
   const stylebtn = styleValue === 'green' ? 'green-btn' : 'white-btn';
   const navigate = useNavigate();

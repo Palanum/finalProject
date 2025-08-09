@@ -2,7 +2,8 @@ import './NavBar.css';
 import logo from '../assets/images/rezcook_logo.png';
 import { Loginbtn,Sharebtn } from './Button';
 import { Link } from 'react-router-dom';
-import { useEffect, useState,useRef } from 'react';
+import { useEffect, useState, useRef, useContext } from 'react';
+import { AuthContext } from '../context/AuthContext';
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { library } from '@fortawesome/fontawesome-svg-core'
@@ -72,7 +73,7 @@ export default function NavBar({ isLoggedIn}) {
 function ProfileMenu() {
   const [open, setOpen] = useState(false);
   const menuRef = useRef();
-
+  const { logout } = useContext(AuthContext);
   const toggleMenu = () => setOpen(!open);
 
   // Close dropdown if clicking outside
@@ -98,7 +99,7 @@ function ProfileMenu() {
           <li><Link to="/profile#favorite">Favorite</Link></li>
           <li><Link to="/profile#myRecipe">My Recipes</Link></li>
           <li><Link to="/profile#alarm">Notifications</Link></li>
-          <li><Link to="/logout">Log out</Link></li>
+          <li><Link to="/" onClick={() => { logout() }}>Log out</Link></li>
         </ul>
       )}
     </div>

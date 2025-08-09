@@ -1,0 +1,21 @@
+.profile-section,
+.favorite-section,
+.myRecipe-section,
+.profile-sidebar,
+.alarm-section {
+  scroll-margin-top: var(--head-h); /* Adjust to your navbar height */
+  padding: 1rem;
+}
+.profile-section,
+.favorite-section,
+.myRecipe-section,
+.alarm-section{
+    height: 100vh;
+}
+.profile-sidebar {
+    background-color: var(--sidebar-bg);
+    border-right: var(--border-1-solid) var(--border-cl);
+}
+.sidebar-container {
+    top: calc(var(--head-h) + 1rem);
+}
