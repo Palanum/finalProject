@@ -28,8 +28,13 @@ async function searchUsdaByName(engName) {
   try {
     const response = await axios.post(url, {
       query: engName,
-      pageSize: 5,
-      dataType: ['Foundation', 'Branded', 'Survey (FNDDS)'],
+      pageSize: null,
+      dataType: [
+        'Foundation', 
+        // 'Branded', 
+        'Survey (FNDDS)',
+        "SR Legacy",
+      ],
       requireAllWords: true,
     });
     return response.data.foods || [];
@@ -55,7 +60,7 @@ function extractNutrition(food) {
   };
 
   if (!food.foodNutrients) return nutrition;
-
+  // console.log('Extracting nutrition from food:', food.foodNutrients);
   for (const nut of food.foodNutrients) {
     switch (nut.nutrientId) {
       case nutrientIds.calories:
@@ -91,15 +96,28 @@ async function searchIngredient(thaiName) {
       console.log('No USDA data found.');
       return [];
     }
+    foods.forEach(food => console.log(food.foodCategory));
+    // console.log('Full data result: ');
+    // console.dir(foods, { depth: 1, colors: true });
 
-    const firstFood = foods[0];
-    console.log('Full data of first result:');
-    console.dir(firstFood, { depth: 10, colors: true });
+    // Filter foods to find raw/uncooked ones by description keywords
+    const includeKeywords = ['raw', 'uncooked', 'fresh', 'whole',`${engName},`,'product'];
+    const excludeKeywords = ['fried', 'roasted', 'cooked', 'soup', 'nuggets', 'breaded', 'grilled', 'processed', 'prepared','from raw'];
 
-    const nutrition = extractNutrition(firstFood);
+    const rawFoods = foods.filter(food => {
+      const desc = food.foodCategory.toLowerCase();
+      const hasInclude = includeKeywords.some(k => desc.includes(k));
+      const hasExclude = excludeKeywords.some(k => desc.includes(k));
+      // Include if contains raw keywords and no exclude keywords
+      return hasInclude && !hasExclude;
+    });
+    console.dir(rawFoods, { depth: 1, colors: true });
+    const chosenFood = rawFoods.length ? rawFoods[0] : foods[0];
+
+    const nutrition = extractNutrition(chosenFood);
     console.log('Extracted Nutrition Info:', nutrition);
 
-    return { food: firstFood, nutrition };
+    return { food: chosenFood, nutrition };
 
   } catch (err) {
     console.error('USDA API error:', err.message);
@@ -107,6 +125,7 @@ async function searchIngredient(thaiName) {
   }
 }
 
+searchIngredient('เนื้อวัว');
 // Your findOrCreateIngredient function using the helpers
 async function findOrCreateIngredient(conn, thaiName) {
   const engName = await translateThaiToEnglish(thaiName);
