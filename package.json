@@ -7,7 +7,8 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "start": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd server && nodemon index.js",
-    "client": "cd client && npm start"
+    "client": "cd client && npm start",
+    "translate_thai": "docker compose -f server/translate_docker/docker-compose.yml up -d --build"
   },
   "keywords": [],
   "author": "",

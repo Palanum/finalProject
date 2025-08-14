@@ -4,97 +4,141 @@ const pool = require('../db');
 const axios = require('axios');
 
 const USDA_API_KEY = process.env.USDA_API_KEY;
-// Specific mapping for exact matches
-const ingredientMap = {
-  "ข้าวเหนียว": "sticky rice",
-  "ข้าวกล้อง": "brown rice",
-  "ข้าวโพด": "corn",
-  "ข้าวโอ๊ต": "oats",
-  "ข้าวบาร์เลย์": "barley",
-  "แป้งข้าวเจ้า": "rice flour",
-  "แป้งข้าวเหนียว": "glutinous rice flour",
-  "แป้งสาลี": "wheat flour",
-  "แป้งมันสำปะหลัง": "tapioca flour",
-  "แป้งข้าวโพด": "corn flour",
-  "ปีกบน": "chicken wing",
-  "อกไก่": "chicken breast",
-  "สะโพกไก่": "chicken thigh",
-  "สันคอหมู": "pork collar",
-  "สันในหมู": "pork loin",
-  "กุ้งแชบ๊วย": "white shrimp",
-  "กุ้งก้ามกราม": "giant freshwater prawn",
-  "ปูม้า": "blue crab",
-  "หอยนางรม": "oyster",
-  "ปลาดุก": "catfish",
-  "ปลาทู": "mackerel",
-  "ปลานิล": "tilapia",
-  "ปลากะพง": "sea bass",
-  "ปลาทูน่า": "tuna",
-  "ผักกาดขาว": "chinese cabbage",
-  "ผักกาดหอม": "lettuce",
-  "ผักบุ้ง": "morning glory",
-  "ผักโขม": "spinach",
-  "ผักชี": "coriander",
-  "ผักชีฝรั่ง": "parsley",
-  "คะน้า": "chinese kale",
-  "ตะไคร้": "lemongrass",
-  "ข่า": "galangal",
-  "ใบมะกรูด": "kaffir lime leaf",
-  "มะเขือเทศ": "tomato",
-  "มะเขือเปราะ": "thai eggplant",
-  "มะเขือม่วง": "eggplant",
-  "มะเขือยาว": "long eggplant",
-  "แตงกวา": "cucumber",
-  "แตงโม": "watermelon",
-  "ฟักทอง": "pumpkin",
-  "แครอท": "carrot",
-  "หัวหอม": "onion",
-  "หอมแดง": "shallot",
-  "กระเทียม": "garlic",
-  "ขิง": "ginger",
-  "ผักกวางตุ้ง": "choy sum",
-  "รากผักชี": "cilantro root",
-  "พริกไทย": "black pepper"
+const ingredientData = {
+  "ข้าวเหนียว": { eng: "sticky rice", synonyms: ["glutinous rice", "sweet rice", "mochi rice"] },
+  "ข้าวกล้อง": { eng: "brown rice", synonyms: ["whole grain rice"] },
+  "ข้าวโพด": { eng: "corn", synonyms: ["maize", "sweet corn", "corn kernel"] },
+  "ข้าวโอ๊ต": { eng: "oats", synonyms: ["rolled oats", "oatmeal"] },
+  "ข้าวบาร์เลย์": { eng: "barley", synonyms: ["hulled barley"] },
+  "แป้งข้าวเจ้า": { eng: "rice flour", synonyms: ["white rice flour"] },
+  "แป้งข้าวเหนียว": { eng: "glutinous rice flour", synonyms: ["sticky rice flour", "mochi flour"] },
+  "แป้งสาลี": { eng: "wheat flour", synonyms: ["all-purpose flour", "plain flour"] },
+  "แป้งมันสำปะหลัง": { eng: "tapioca flour", synonyms: ["cassava flour"] },
+  "แป้งข้าวโพด": { eng: "corn flour", synonyms: ["cornstarch"] },
+  "ปีกบน": { eng: "chicken wing", synonyms: ["wing"] },
+  "อกไก่": { eng: "chicken breast", synonyms: ["breast"] },
+  "สะโพกไก่": { eng: "chicken thigh", synonyms: ["thigh"] },
+  "สันคอหมู": { eng: "pork collar", synonyms: ["pork neck"] },
+  "สันในหมู": { eng: "pork loin", synonyms: ["pork tenderloin"] },
+  "กุ้งแชบ๊วย": { eng: "white shrimp", synonyms: ["white prawn", "vannamei"] },
+  "กุ้งก้ามกราม": { eng: "giant freshwater prawn", synonyms: ["river prawn", "Macrobrachium rosenbergii"] },
+  "ปูม้า": { eng: "blue crab", synonyms: ["sea crab", "swimming crab"] },
+  "หอยนางรม": { eng: "oyster", synonyms: ["shell oyster"] },
+  "ปลาดุก": { eng: "catfish", synonyms: ["mudfish"] },
+  "ปลาทู": { eng: "mackerel", synonyms: ["short mackerel"] },
+  "ปลานิล": { eng: "tilapia", synonyms: ["Nile tilapia"] },
+  "ปลากะพง": { eng: "sea bass", synonyms: ["barramundi", "Lates calcarifer"] },
+  "ปลาทูน่า": { eng: "tuna", synonyms: ["skipjack tuna", "Thunnus"] },
+  "ผักกาดขาว": { eng: "chinese cabbage", synonyms: ["napa cabbage", "wong bok", "Brassica rapa subsp. pekinensis"] },
+  "ผักกาดหอม": { eng: "lettuce", synonyms: ["romaine", "butter lettuce"] },
+  "ผักบุ้ง": { eng: "morning glory", synonyms: ["water spinach", "kangkung", "Ipomoea aquatica"] },
+  "ผักโขม": { eng: "spinach", synonyms: ["baby spinach", "Spinacia oleracea"] },
+  "ผักชี": { eng: "coriander", synonyms: ["cilantro", "chinese parsley", "Coriandrum sativum"] },
+  "ผักชีฝรั่ง": { eng: "parsley", synonyms: ["flat-leaf parsley", "Petroselinum crispum"] },
+  "คะน้า": { eng: "chinese kale", synonyms: ["gai lan", "kai-lan", "Brassica oleracea var. alboglabra"] },
+  "ตะไคร้": { eng: "lemongrass", synonyms: ["lemon grass", "Cymbopogon citratus"] },
+  "ข่า": { eng: "galangal", synonyms: ["Thai ginger", "blue ginger", "Alpinia galanga"] },
+  "ใบมะกรูด": { eng: "kaffir lime leaf", synonyms: ["makrut lime leaf", "Citrus hystrix"] },
+  "มะเขือเทศ": { eng: "tomato", synonyms: ["roma tomato", "cherry tomato", "Solanum lycopersicum"] },
+  "มะเขือเปราะ": { eng: "thai eggplant", synonyms: ["green eggplant", "Solanum melongena var. esculentum"] },
+  "มะเขือม่วง": { eng: "eggplant", synonyms: ["aubergine", "brinjal", "Solanum melongena"] },
+  "มะเขือยาว": { eng: "long eggplant", synonyms: ["Japanese eggplant"] },
+  "แตงกวา": { eng: "cucumber", synonyms: ["garden cucumber", "Cucumis sativus"] },
+  "แตงโม": { eng: "watermelon", synonyms: ["seedless watermelon", "Citrullus lanatus"] },
+  "ฟักทอง": { eng: "pumpkin", synonyms: ["winter squash", "Cucurbita pepo"] },
+  "แครอท": { eng: "carrot", synonyms: ["baby carrot", "orange carrot", "Daucus carota"] },
+  "หัวหอม": { eng: "onion", synonyms: ["yellow onion", "white onion", "Allium cepa"] },
+  "หอมแดง": { eng: "shallot", synonyms: ["red shallot", "Allium ascalonicum"] },
+  "กระเทียม": { eng: "garlic", synonyms: ["clove", "garlic clove", "Allium sativum"] },
+  "ขิง": { eng: "ginger", synonyms: ["fresh ginger", "root ginger", "Zingiber officinale"] },
+  "ผักกวางตุ้ง": { eng: "choy sum", synonyms: ["cai xin", "flowering cabbage"] },
+  "รากผักชี": { eng: "cilantro root", synonyms: ["coriander root"] },
+  "พริกไทย": { eng: "black pepper", synonyms: ["peppercorn"] },
+  "ฟัก": { eng: "winter melon", synonyms: ["waxgourd", "Benincasa hispida"] },
+  "ฟักอ่อน": { eng: "young winter melon", synonyms: ["waxgourd", "chinese preserving melon"] },
+  "มะระ": { eng: "bitter melon", synonyms: ["balsam-pear", "bitter gourd", "momordica charantia"] },
+
+  // General fallback categories
+  "ไก่": { eng: "chicken", synonyms: ["breast", "thigh", "wing", "drumstick"] },
+  "หมู": { eng: "pork", synonyms: ["loin", "belly", "shoulder", "ham"] },
+  "วัว": { eng: "beef", synonyms: ["sirloin", "chuck", "brisket", "ribeye", "round"] },
+  "เนื้อ": { eng: "beef", synonyms: ["sirloin", "chuck", "brisket", "ribeye", "round"] },
+  "เป็ด": { eng: "duck", synonyms: ["breast", "thigh"] },
+  "แกะ": { eng: "lamb", synonyms: [] },
+  "แพะ": { eng: "goat", synonyms: [] },
+  "กวาง": { eng: "venison", synonyms: [] },
+  "กระต่าย": { eng: "rabbit", synonyms: [] },
+  "ไก่งวง": { eng: "turkey", synonyms: ["breast", "thigh", "wing"] },
+  "ไข่": { eng: "egg", synonyms: ["eggs"] },
+  "ปลา": { eng: "fish", synonyms: ["fillet", "whole", "steak"] },
+  "กุ้ง": { eng: "shrimp", synonyms: ["whole", "peeled"] },
+  "ปู": { eng: "crab", synonyms: ["crab meat"] },
+  "หอย": { eng: "shellfish", synonyms: ["mollusk"] },
+  "ปลาหมึก": { eng: "squid", synonyms: ["calamari"] },
+  "ข้าว": { eng: "rice", synonyms: ["cooked rice", "white rice"] },
+  "แป้ง": { eng: "flour", synonyms: ["all-purpose flour"] },
+  "ถั่ว": { eng: "bean", synonyms: ["legume"] },
+  "ผัก": { eng: "vegetable", synonyms: ["greens"] },
+  "ผลไม้": { eng: "fruit", synonyms: ["fruits"] },
+  "น้ำมัน": { eng: "oil", synonyms: ["cooking oil", "vegetable oil"] },
+  "น้ำ": { eng: "water", synonyms: ["aqua"] },
+  "น้ำปลา": { eng: "fish sauce", synonyms: ["nam pla"] },
+  "ซอส": { eng: "sauce", synonyms: ["soy sauce"] },
+  "น้ำตาล": { eng: "sugar", synonyms: ["white sugar", "brown sugar"] },
+  "น้ำส้มสายชู": { eng: "vinegar", synonyms: ["white vinegar", "rice vinegar"] },
+  "น้ำมะนาว": { eng: "lime juice", synonyms: ["lemon juice"] }
 };
 
-// General fallback mapping for broad categories
-const generalMap = {
-  "ไก่": "chicken",
-  "หมู": "pork",
-  "วัว": "beef",
-  "เป็ด": "duck",
-  "แกะ": "lamb",
-  "แพะ": "goat",
-  "กวาง": "venison",
-  "กระต่าย": "rabbit",
-  "ไก่งวง": "turkey",
-  "ไข่": "egg",
-  "ปลา": "fish",
-  "กุ้ง": "shrimp",
-  "ปู": "crab",
-  "หอย": "shellfish",
-  "ปลาหมึก": "squid",
-  "ข้าว": "rice",
-  "แป้ง": "flour",
-  "ถั่ว": "bean",
-  "ผัก": "vegetable",
-  "ผลไม้": "fruit",
-  "น้ำมัน": "oil",
-  "น้ำ": "water",
-  "น้ำปลา": "fish sauce",
-  "ซอส": "sauce",
-  "น้ำตาล": "sugar",
-  "น้ำส้มสายชู": "vinegar",
-  "น้ำมะนาว": "lime juice"
-};
 
 
-function filterRawFoods(foods) {
-  return foods.filter(f => {
-    const text = (f.description + ' ' + (f.foodCategory || '') + ' ' + (f.commonNames || '')).toLowerCase();
-    return text.includes('raw') && !text.match(/cooked|fried|roasted|grilled|processed|prepared/);
-  });
+async function mapIngredient(thaiInput) {
+  thaiInput = thaiInput.trim();
+
+  // only check exact Thai names
+  for (const key in ingredientData) {
+    if (thaiInput.includes(key)) {
+      return ingredientData[key].eng;
+    }
+  }
+
+  // fallback: use translation API if no Thai match
+  return await libreTranslateThaiToEng(thaiInput);
 }
+
+function chooseBestFood(rawFoods, engName) {
+  const lowerName = engName.toLowerCase();
+
+  // first try exact match with main name or any synonyms
+  let match = rawFoods.find(f =>
+    f.description.toLowerCase() === lowerName ||
+    Object.values(ingredientData).some(data =>
+      data.eng.toLowerCase() === lowerName &&
+      data.synonyms.some(s => f.description.toLowerCase().includes(s.toLowerCase()))
+    )
+  );
+  if (match) return match;
+
+  // next: partial match with main name or synonyms
+  match = rawFoods.find(f =>
+    f.description.toLowerCase().includes(lowerName) ||
+    Object.values(ingredientData).some(data =>
+      data.eng.toLowerCase() === lowerName &&
+      data.synonyms.some(s => f.description.toLowerCase().includes(s.toLowerCase()))
+    )
+  );
+  if (match) return match;
+
+  // then fallback to categories
+  const meatCategories = ['Poultry Products', 'Beef Products', 'Pork Products', 'Seafood Products'];
+  const plantCategories = ['Vegetables and Vegetable Products', 'Fruits and Fruit Juices', 'Legumes and Legume Products'];
+
+  match = rawFoods.find(f => plantCategories.includes(f.foodCategory));
+  if (match) return match;
+
+  return rawFoods[0];
+}
+
+
 
 function extractNutrition(food) {
   const nutrientIds = { 
@@ -105,14 +149,34 @@ function extractNutrition(food) {
   };
   const nutrition = {};
   
+  if (!food.foodNutrients) return { calories: null, protein: null, fat: null, carbs: null };
+
   for (const key in nutrientIds) {
-    const nut = food.foodNutrients?.find(n => nutrientIds[key].includes(n.nutrientId));
-    nutrition[key] = nut ? nut.value : null;
+    const nut = food.foodNutrients.find(n => n?.nutrientId && nutrientIds[key].includes(n.nutrientId));
+    nutrition[key] = nut && nut.value != null ? nut.value : null;
   }
-  
+
   return nutrition;
 }
+function filterRawFoods(foods) {
+  return foods.filter(f => {
+    const text = (f.description + ' ' + (f.foodCategory || '') + ' ' + (f.commonNames || '')).toLowerCase();
+    // include all foods unless explicitly cooked/fried/etc.
+    return !text.match(/cooked|fried|roasted|grilled|processed|prepared/);
+  });
+}
 
+
+
+async function libreTranslateThaiToEng(text) {
+  const res = await axios.post(
+  'http://localhost:5001/translate',
+  { q: text, source: 'th', target: 'en', format: 'text' },
+  { headers: { 'Content-Type': 'application/json' } }
+);
+return res.data.translatedText;
+
+}
 
 async function searchUsdaByName(engName, strict = true) {
   const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${USDA_API_KEY}`;
@@ -130,26 +194,6 @@ async function searchUsdaByName(engName, strict = true) {
   }
 }
 
-function mapIngredient(thaiInput) {
-  thaiInput = thaiInput.trim();
-
-  // 1️⃣ Try detailed mapping first
-  for (const key of Object.keys(ingredientMap)) {
-    if (thaiInput.includes(key)) {
-      return ingredientMap[key]; // e.g., "อกไก่" -> "chicken breast"
-    }
-  }
-
-  for (const key of Object.keys(generalMap)) {
-    if (thaiInput.includes(key)) {
-      return generalMap[key]; // e.g., "ตีนไก่" -> "chicken"
-    }
-  }
-
-  // 3️⃣ If nothing matches, return original input
-  return thaiInput;
-}
-
 
 
 async function findOrCreateIngredient(conn, thaiName) {
@@ -161,7 +205,7 @@ async function findOrCreateIngredient(conn, thaiName) {
   if (found.length > 0) return found[0];
 
   // 2️⃣ Map Thai → English using fuzzy matching
-  const engName = mapIngredient(thaiName);
+  const engName = await mapIngredient(thaiName);
   console.log(`Mapped "${thaiName}" -> "${engName}"`);
 
   // 3️⃣ Search USDA strictly first
@@ -175,13 +219,27 @@ async function findOrCreateIngredient(conn, thaiName) {
     foods = await searchUsdaByName(engName, false);
     rawFoods = filterRawFoods(foods);
   }
-  console.dir(foods[0], { depth: 1, color: true });
+  console.log('USDA raw foods found:');
+  rawFoods.forEach(f => {
+    console.log({
+      fdcId: f.fdcId,
+      description: f.description,
+      scientificName: f.scientificName,
+      foodCategory: f.foodCategory,
+      calories: f.foodNutrients?.find(n => [1008].includes(n.nutrientId))?.value,
+      protein: f.foodNutrients?.find(n => [1003].includes(n.nutrientId))?.value,
+      fat: f.foodNutrients?.find(n => [1004].includes(n.nutrientId))?.value,
+      carbs: f.foodNutrients?.find(n => [1005].includes(n.nutrientId))?.value,
+    });
+  });
+
 
   if (!rawFoods.length) throw new Error('No reliable raw USDA food found');
 
   // 5️⃣ Take first raw food
-  const chosenFood = rawFoods[0];
+  const chosenFood = chooseBestFood(rawFoods, engName);
   const nutrition = extractNutrition(chosenFood);
+  console.log(`Chosen food: ${chosenFood.description} (FDC ID: ${chosenFood.fdcId})`);
 
   // 6️⃣ Insert into DB
   const [insert] = await conn.query(
@@ -200,9 +258,9 @@ async function findOrCreateIngredient(conn, thaiName) {
 }
 
 
-async function test() {
+async function test(text) {
   try {
-    const thaiName = "พริกไทย";
+    const thaiName = text;
 
     // Use pool to query
     const ingredientData = await findOrCreateIngredient(pool, thaiName);
@@ -215,7 +273,7 @@ async function test() {
   }
 }
 
-test();
+test('มะระ');
 
 
 router.post('/addnew', async (req, res) => {
