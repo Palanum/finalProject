@@ -1,6 +1,7 @@
 .step-img-preview:hover {
   border-color: #4caf50;
 }
+
 .remove-img-btn {
   position: absolute;
   top: 2px;
@@ -15,27 +16,31 @@
   font-weight: bold;
   z-index: 2;
 }
+
 .remove-img-btn:hover {
   background: #e53935;
 }
-.add-img-btn{
-    width: 100px;
-    height: 100px;
-    border: 2px dashed #ccc;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    cursor: pointer;
-    background: #fafafa;
+
+.add-img-btn {
+  width: 100px;
+  height: 100px;
+  border: 2px dashed #ccc;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  background: #fafafa;
 }
-.step-img-preview-multi{
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    min-height: 120px;
-    align-items: center;
+
+.step-img-preview-multi {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 120px;
+  align-items: center;
 }
+
 .step-img-preview {
   width: 100px;
   height: 100px;
@@ -44,4 +49,8 @@
   overflow: hidden;
   border: 2px solid #ccc;
   background: #fafafa;
+}
+
+.recipe-form {
+  max-width: 655;
 }

@@ -4,13 +4,14 @@
   "description": "",
   "main": "index.js",
   "scripts": {
+    "install-all": "npm install && cd client && npm install && cd ../server && npm install",
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "start": "concurrently \"npm run server\" \"npm run client\" \"npm run translate_thai\"",
     "server": "cd server && nodemon index.js",
-    "client": "cd client && npm start",
+    "client": "cd client && npm run dev",
     "translate_thai": "docker compose -f server/translate_docker/docker-compose.yml up -d --build"
   },
-  "keywords": [],
+  "keywords": ["react", "vite", "node", "express", "docker", "ant-design"],
   "author": "",
   "license": "ISC",
   "type": "commonjs",

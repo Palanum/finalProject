@@ -256,7 +256,7 @@ async function findOrCreateIngredient(conn, thaiName) {
     ...nutrition
   };
 }
-
+ 
 
 async function test(text) {
   try {
@@ -273,7 +273,7 @@ async function test(text) {
   }
 }
 
-test('มะระ');
+// test('มะระ');
 
 
 router.post('/addnew', async (req, res) => {
