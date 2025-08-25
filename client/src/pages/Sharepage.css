@@ -1,3 +1,11 @@
+.sharepage-title {
+  text-align: center;
+}
+
+.sharepage {
+  padding: 1rem;
+}
+
 .step-img-preview:hover {
   border-color: #4caf50;
 }

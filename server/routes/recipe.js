@@ -2,6 +2,11 @@ const express = require('express');
 const router = express.Router();
 const pool = require('../db');
 const axios = require('axios');
+const multer = require('multer');
+const cloudinary = require('../config/cloudinary');
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 const USDA_API_KEY = process.env.USDA_API_KEY;
 const ingredientData = {
@@ -141,14 +146,14 @@ function chooseBestFood(rawFoods, engName) {
 
 
 function extractNutrition(food) {
-  const nutrientIds = { 
-    calories: [1008, 2047, 2048], 
-    protein: [1003], 
-    fat: [1004], 
-    carbs: [1005] 
+  const nutrientIds = {
+    calories: [1008, 2047, 2048],
+    protein: [1003],
+    fat: [1004],
+    carbs: [1005]
   };
   const nutrition = {};
-  
+
   if (!food.foodNutrients) return { calories: null, protein: null, fat: null, carbs: null };
 
   for (const key in nutrientIds) {
@@ -170,11 +175,11 @@ function filterRawFoods(foods) {
 
 async function libreTranslateThaiToEng(text) {
   const res = await axios.post(
-  'http://localhost:5001/translate',
-  { q: text, source: 'th', target: 'en', format: 'text' },
-  { headers: { 'Content-Type': 'application/json' } }
-);
-return res.data.translatedText;
+    'http://localhost:5001/translate',
+    { q: text, source: 'th', target: 'en', format: 'text' },
+    { headers: { 'Content-Type': 'application/json' } }
+  );
+  return res.data.translatedText;
 
 }
 
@@ -210,7 +215,7 @@ async function findOrCreateIngredient(conn, thaiName) {
 
   // 3️⃣ Search USDA strictly first
   let foods = await searchUsdaByName(engName, true);
-  
+
   let rawFoods = filterRawFoods(foods);
 
   // 4️⃣ Relax search if no raw food found
@@ -256,7 +261,7 @@ async function findOrCreateIngredient(conn, thaiName) {
     ...nutrition
   };
 }
- 
+
 
 async function test(text) {
   try {
@@ -276,59 +281,93 @@ async function test(text) {
 // test('มะระ');
 
 
-router.post('/addnew', async (req, res) => {
-  const conn = await pool.getConnection();
-  try {
-    const { title, CategoryID, videoURL, ingredients, instructions } = req.body;
+// promisify Cloudinary uploader
+cloudinary.uploader.upload_stream_async = function (buffer) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream((error, result) => {
+      if (error) reject(error);
+      else resolve(result);
+    });
+    stream.end(buffer);
+  });
+};
 
-    await conn.beginTransaction();
+router.post(
+  '/addnew',
+  upload.fields([
+    { name: 'recipeImage', maxCount: 1 },
+    { name: 'stepImages', maxCount: 50 }, // all step images
+  ]),
+  async (req, res) => {
+    const conn = await pool.getConnection();
+    try {
+      const { title, CategoryID, videoURL, ingredients, instructions } = req.body;
+      await conn.beginTransaction();
 
-    // 1. Insert recipe
-    const [recipeResult] = await conn.query(
-      'INSERT INTO recipes (Title, CategoryID, videoURL) VALUES (?, ?, ?)',
-      [title, CategoryID, videoURL]
-    );
-    const RecipeID = recipeResult.insertId;
+      // --- Upload recipe image ---
+      let recipeImageURL = null;
+      if (req.files.recipeImage?.[0]) {
+        const uploadedRecipe = await cloudinary.uploader.upload_stream_async(
+          req.files.recipeImage[0].buffer
+        );
+        recipeImageURL = uploadedRecipe.secure_url;
+      }
 
-    // 2. Insert ingredients with lookup
-    // In your addnew route:
-    for (const ing of ingredients) {
-      const rawIngredientId = await findOrCreateIngredient(conn, ing.name); // ing.name = Thai name
-      await conn.query(
-        'INSERT INTO ingredients (RecipeID, RawIngredientID, Quantity, Unit) VALUES (?, ?, ?, ?)',
-        [RecipeID, rawIngredientId, ing.amount, ing.unit]
+      // --- Insert recipe ---
+      const [recipeResult] = await conn.query(
+        'INSERT INTO recipes (Title, CategoryID, videoURL, recipeImage) VALUES (?, ?, ?, ?)',
+        [title, CategoryID, videoURL || null, recipeImageURL]
       );
-    }
+      const RecipeID = recipeResult.insertId;
 
-
-    // 3. Insert instructions
-    for (const [idx, step] of instructions.entries()) {
-      const [insRes] = await conn.query(
-        'INSERT INTO intruction (RecipeID, details) VALUES (?, ?)',
-        [RecipeID, step.text]
-      );
-      const instructionId = insRes.insertId;
-
-      if (step.imageURL) {
+      // --- Insert ingredients ---
+      const ingArr = JSON.parse(ingredients);
+      for (const ing of ingArr) {
+        const rawIngredientId = await findOrCreateIngredient(conn, ing.name);
         await conn.query(
-          'INSERT INTO instruction_img (instructionID, imageURL) VALUES (?, ?)',
-          [instructionId, step.imageURL]
+          'INSERT INTO ingredients (RecipeID, RawIngredientID, Quantity, Unit) VALUES (?, ?, ?, ?)',
+          [RecipeID, rawIngredientId, ing.amount, ing.unit]
         );
       }
+
+      // --- Insert instructions and upload step images ---
+      const stepsArr = JSON.parse(instructions);
+      let stepImageIndex = 0; // global index to match images
+
+      for (const step of stepsArr) {
+        const [insRes] = await conn.query(
+          'INSERT INTO intruction (RecipeID, details) VALUES (?, ?)',
+          [RecipeID, step.text]
+        );
+        const instructionId = insRes.insertId;
+
+        // upload step images if any
+        const stepImages = step.stepImages || [];
+        for (let i = 0; i < stepImages.length; i++) {
+          if (!req.files.stepImages?.[stepImageIndex]) continue;
+
+          const uploadedStepImg = await cloudinary.uploader.upload_stream_async(
+            req.files.stepImages[stepImageIndex].buffer
+          );
+          await conn.query(
+            'INSERT INTO instruction_img (instructionID, imageURL) VALUES (?, ?)',
+            [instructionId, uploadedStepImg.secure_url]
+          );
+          stepImageIndex++;
+        }
+      }
+
+      await conn.commit();
+      res.json({ msg: 'Recipe added successfully!', RecipeID });
+    } catch (error) {
+      await conn.rollback();
+      console.error('Error adding recipe:', error);
+      res.status(500).json({ error: 'Internal server error' });
+    } finally {
+      conn.release();
     }
-
-    await conn.commit();
-    res.json({ msg: 'Recipe added', RecipeID });
-
-  } catch (error) {
-    await conn.rollback();
-    console.error('Error adding recipe:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  } finally {
-    conn.release();
   }
-});
-
+);
 
 router.post('/', (req, res) => {
   try {

@@ -1,25 +1,18 @@
-import React, { useState, useRef } from 'react'
+import React, { useState, useEffect } from 'react';
 import "./Sharepage.css";
 import { PlusOutlined, LoadingOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import {
   Button,
-  Cascader,
-  Checkbox,
-  ColorPicker,
-  DatePicker,
   Form,
   Input,
   InputNumber,
   message,
-  Radio,
-  Rate,
   Select,
-  Slider,
   Space,
-  Switch,
-  TreeSelect,
   Upload,
 } from 'antd';
+import axios from 'axios';
+
 function Sharepage() {
   const { TextArea } = Input;
 
@@ -63,9 +56,46 @@ function Sharepage() {
     </div>
   );
 
-  const onFinish = values => {
-    console.log('Form Values:', values);
-    message.success('Recipe submitted successfully!');
+  const onFinish = async values => {
+    try {
+      const formData = new FormData();
+      formData.append('title', values.title);
+      formData.append('description', values.description || '');
+      formData.append('time', values.time || '');
+      formData.append('video', values.video || '');
+
+      if (values.recipeImage?.[0]?.originFileObj) {
+        formData.append('recipeImage', values.recipeImage[0].originFileObj);
+      }
+
+      values.ingredientsList.forEach((ingredient, i) => {
+        formData.append(`ingredientsList[${i}][name]`, ingredient.name);
+        formData.append(`ingredientsList[${i}][quantity]`, ingredient.quantity);
+        formData.append(`ingredientsList[${i}][unit]`, ingredient.unit);
+      });
+
+      values.stepsList.forEach((step, i) => {
+        formData.append(`stepsList[${i}][stepDescription]`, step.stepDescription);
+        step.stepImages?.forEach(file => {
+          formData.append(`stepsList[${i}][stepImages]`, file.originFileObj);
+        });
+      });
+
+      values.tags?.forEach((tagObj, i) => {
+        formData.append(`tags[${i}]`, tagObj.tag);
+      });
+
+      const res = await axios.post('/api/recipes', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }
+      });
+
+      if (res.data.success) {
+        message.success('Recipe submitted successfully!');
+      }
+    } catch (err) {
+      console.error(err);
+      message.error('Submit failed!');
+    }
   };
 
   const formItemLayout = {
@@ -84,9 +114,15 @@ function Sharepage() {
       sm: { span: 18, offset: 4 }
     },
   };
+  const buttonItemLayout = {
+    wrapperCol: {
+      xs: { span: 6, offset: 0 },
+      sm: { span: 10, offset: 0 }
+    },
+  };
   return (
     <div className="sharepage">
-      <h3>Share Your Recipe</h3>
+      <h2 className='sharepage-title mb-3'>Share Your Recipe</h2>
       <Form
         name="recipe_form"
         className="recipe-form"
@@ -101,35 +137,37 @@ function Sharepage() {
         {/* Recipe Title */}
         <Form.Item
           name="title"
-          rules={[{ required: true, message: 'Please input the title of your recipe!' }]}
+          rules={[{ required: true, message: 'โปรดใส่ชื่อเมนูอาหาร' }]}
           {...formItemLayoutWithOutLabel}
         >
-          <Input placeholder="ชื่อเมนูอาหาร" />
+          <Input className='text-center' placeholder="ชื่อเมนูอาหาร" />
         </Form.Item>
 
         {/* Recipe Image */}
         <Form.Item
           name="recipeImage"
-          label="Recipe Image"
           valuePropName="fileList"
           getValueFromEvent={normFile}
-          {...formItemLayout}
+          {...formItemLayoutWithOutLabel}
         >
-          <Upload
-            accept="image/png, image/jpeg, image/jpg"
-            name="recipe"
-            listType="picture-card"
-            showUploadList={false}
-            maxCount={1}
-            beforeUpload={beforeUpload}
-            onChange={handleRecipeChange}
-          >
-            {recipeImageUrl ? (
-              <img src={recipeImageUrl} alt="recipe" style={{ width: '100%' }} />
-            ) : (
-              uploadRecipeButton
-            )}
-          </Upload>
+          <div style={{ textAlign: 'center' }}>
+            <Upload
+              accept="image/png, image/jpeg, image/jpg"
+              name="recipe"
+              listType="picture-card"
+              showUploadList={false}
+              maxCount={1}
+              beforeUpload={beforeUpload}
+              onChange={handleRecipeChange}
+            >
+              {recipeImageUrl ? (
+                <img src={recipeImageUrl} alt="recipe" style={{ width: '100%' }} />
+              ) : (
+                uploadRecipeButton
+              )}
+            </Upload>
+          </div>
+
         </Form.Item>
 
         {/* Tags */}
@@ -149,7 +187,7 @@ function Sharepage() {
                     <MinusCircleOutlined onClick={() => remove(name)} />
                   </Space>
                 ))}
-                <Form.Item {...formItemLayoutWithOutLabel}>
+                <Form.Item {...buttonItemLayout}>
                   <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
                     Add Tag
                   </Button>
@@ -224,8 +262,8 @@ function Sharepage() {
                 ))}
 
 
-                <Form.Item {...formItemLayoutWithOutLabel}>
-                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
+                <Form.Item {...buttonItemLayout}>
+                  <Button type="dashed" onClick={() => add({ unit: 'กิโลกรัม' })} block icon={<PlusOutlined />}>
                     Add Ingredient
                   </Button>
                 </Form.Item>
@@ -287,7 +325,7 @@ function Sharepage() {
                     </Form.Item>
                   </div>
                 ))}
-                <Form.Item {...formItemLayoutWithOutLabel}>
+                <Form.Item {...buttonItemLayout}>
                   <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
                     Add Step
                   </Button>
@@ -295,6 +333,22 @@ function Sharepage() {
               </>
             )}
           </Form.List>
+        </Form.Item>
+        {/* Single Recipe Video */}
+        <Form.Item label="Recipe Video" name="video" rules={[{ type: 'url' }]} {...formItemLayout}>
+          <Input placeholder="Video URL (YouTube, Vimeo, TikTok...)" />
+        </Form.Item>
+
+        {/* Live Video Preview */}
+        <Form.Item shouldUpdate>
+          {({ getFieldValue }) => {
+            const url = getFieldValue('video');
+            return url ? (
+              <div style={{ textAlign: 'center' }}>
+                <VideoPreview url={url} />
+              </div>
+            ) : null;
+          }}
         </Form.Item>
 
         {/* Submit */}
@@ -308,7 +362,67 @@ function Sharepage() {
   );
 }
 
+function getEmbedUrl(url) {
+  if (!url) return null;
 
+  try {
+    // YouTube
+    if (url.includes("youtube.com/watch")) {
+      const videoId = new URL(url).searchParams.get("v");
+      if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+    }
+    if (url.includes("youtu.be/")) {
+      const videoId = url.split("youtu.be/")[1].split(/[?&]/)[0];
+      return `https://www.youtube.com/embed/${videoId}`;
+    }
+
+    // Vimeo
+    if (url.includes("vimeo.com/")) {
+      const videoId = url.split("vimeo.com/")[1].split(/[?&]/)[0];
+      return `https://player.vimeo.com/video/${videoId}`;
+    }
+
+    // TikTok (embed)
+    if (url.includes("tiktok.com/")) {
+      return url.replace("/video/", "/embed/video/");
+    }
+
+    // Facebook
+    if (url.includes("facebook.com/")) {
+      return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}`;
+    }
+
+    return null; // unsupported link
+  } catch (err) {
+    console.error("Invalid video URL", err);
+    return null;
+  }
+}
+
+
+const VideoPreview = ({ url }) => {
+  const [embedUrl, setEmbedUrl] = useState(null);
+
+  useEffect(() => {
+    setEmbedUrl(getEmbedUrl(url));
+  }, [url]);
+
+  if (!embedUrl) return null;
+
+  return (
+    <div style={{ marginTop: 8 }}>
+      <iframe
+        width="360"
+        height="215"
+        src={embedUrl}
+        title="Video Preview"
+        frameBorder="0"
+        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+        allowFullScreen
+      ></iframe>
+    </div>
+  );
+};
 
 // function Sharepage() {
 //   const [ingredients, setIngredients] = useState([
