@@ -4,7 +4,7 @@ const pool = require('../db');
 const axios = require('axios');
 const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
-
+const { libreTranslateThaiToEng } = require('../config/lebretranslate');
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
@@ -171,17 +171,6 @@ function filterRawFoods(foods) {
   });
 }
 
-
-
-async function libreTranslateThaiToEng(text) {
-  const res = await axios.post(
-    'http://localhost:5001/translate',
-    { q: text, source: 'th', target: 'en', format: 'text' },
-    { headers: { 'Content-Type': 'application/json' } }
-  );
-  return res.data.translatedText;
-
-}
 
 async function searchUsdaByName(engName, strict = true) {
   const url = `https://api.nal.usda.gov/fdc/v1/foods/search?api_key=${USDA_API_KEY}`;

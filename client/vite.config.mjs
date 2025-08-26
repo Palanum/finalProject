@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/api': 'http://localhost:5000'  // matches your old CRA proxy
+      '/api': 'http://localhost:5000'
     }
   }
 });
