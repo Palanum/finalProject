@@ -11,24 +11,32 @@ import Profile from "./pages/Profile";
 import Search from './pages/Search';
 import Sharepage from './pages/Sharepage';
 import { AuthContext } from './context/AuthContext';
-
+import ProtectedRoute from './components/Protectroute';
 function App() {
   const { user } = useContext(AuthContext);
   const isLoggedIn = !!user;
   return (
     <div className="App">
-      <NavBar isLoggedIn={isLoggedIn}/>
+      <NavBar isLoggedIn={isLoggedIn} />
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/profile" element={<Profile/> }/>
-        <Route path="/login" element={<Login/>} />
-        <Route path="/register" element={<Register/>} />
-        <Route path="/share" element={<Sharepage />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route
+          path="/share"
+          element={
+            <ProtectedRoute>
+              <Sharepage />
+            </ProtectedRoute>
+          }
+        />
+
         <Route path="/recipes" element={<p>search recipes page</p>} />
         <Route path="/search" element={<Search />} />
         <Route path="*" element={<p>404 Not Found</p>} />
       </Routes>
-      <Footer/>
+      <Footer />
     </div>
   );
 }

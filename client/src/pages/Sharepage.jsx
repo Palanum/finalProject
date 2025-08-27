@@ -1,5 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import "./Sharepage.css";
+import '../components/Button.css'
+import './Form.css'
+import { AuthContext } from "../context/AuthContext";
 import { PlusOutlined, LoadingOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import {
   Button,
@@ -7,19 +10,35 @@ import {
   Input,
   InputNumber,
   message,
+  Modal,
   Select,
   Space,
   Upload,
+  Row,
+  Col
 } from 'antd';
 import axios from 'axios';
 
 function Sharepage() {
   const { TextArea } = Input;
-
+  const { user } = useContext(AuthContext);
   const [recipeImageUrl, setRecipeImageUrl] = useState();
   const [recipeLoading, setRecipeLoading] = useState(false);
+  const [previewVisible, setPreviewVisible] = useState(false);
+  const [previewImage, setPreviewImage] = useState('');
+  const [recipeFileList, setRecipeFileList] = useState([]);
 
+  const handlePreview = (file) => {
+    setPreviewImage(file.originFileObj ? URL.createObjectURL(file.originFileObj) : file.url);
+    setPreviewVisible(true);
+  };
   const normFile = e => (Array.isArray(e) ? e : e?.fileList);
+  useEffect(() => {
+    if (!user) {
+      message.error('You must be logged in to share recipes');
+      navigate('/login');
+    }
+  }, [user]);
 
   const getBase64 = (file, callback) => {
     const reader = new FileReader();
@@ -27,26 +46,25 @@ function Sharepage() {
     reader.readAsDataURL(file);
   };
 
-  const beforeUpload = file => {
+  const beforeUpload = (file) => {
     const isJpgOrPng = file.type === 'image/jpeg' || file.type === 'image/png';
     if (!isJpgOrPng) message.error('You can only upload JPG/PNG file!');
     const isLt2M = file.size / 1024 / 1024 < 2;
     if (!isLt2M) message.error('Image must smaller than 2MB!');
-    return isJpgOrPng && isLt2M;
+    return false; // <-- prevent auto upload
   };
 
-  const handleRecipeChange = info => {
-    const file = info.file.originFileObj;
-    if (!file) return;
+  const handleRecipeChange = ({ fileList }) => {
+    const lastFile = fileList.slice(-1).map((file, index) => ({
+      ...file,
+      uid: file.uid || `recipe-${Date.now()}-${index}`
+    }));
+    setRecipeFileList(lastFile);
 
-    setRecipeLoading(true);
-
-    getBase64(file, url => {
-      setRecipeLoading(false);
-      setRecipeImageUrl(url);
-    });
-
-    return false;
+    const file = lastFile[0]?.originFileObj;
+    if (file) {
+      getBase64(file, url => setRecipeImageUrl(url));
+    }
   };
 
   const uploadRecipeButton = (
@@ -56,47 +74,74 @@ function Sharepage() {
     </div>
   );
 
-  const onFinish = async values => {
+  const onFinish = async (values) => {
     try {
       const formData = new FormData();
-      formData.append('title', values.title);
-      formData.append('description', values.description || '');
-      formData.append('time', values.time || '');
-      formData.append('video', values.video || '');
 
-      if (values.recipeImage?.[0]?.originFileObj) {
-        formData.append('recipeImage', values.recipeImage[0].originFileObj);
+      // Basic fields
+      formData.append('title', values.title);
+      formData.append('time', values.time || '');
+      formData.append('videoURL', values.video || '');
+
+      // Recipe main image
+      if (recipeFileList[0]?.originFileObj) {
+        formData.append('recipeImage', recipeFileList[0].originFileObj);
       }
 
-      values.ingredientsList.forEach((ingredient, i) => {
-        formData.append(`ingredientsList[${i}][name]`, ingredient.name);
-        formData.append(`ingredientsList[${i}][quantity]`, ingredient.quantity);
-        formData.append(`ingredientsList[${i}][unit]`, ingredient.unit);
-      });
 
-      values.stepsList.forEach((step, i) => {
-        formData.append(`stepsList[${i}][stepDescription]`, step.stepDescription);
-        step.stepImages?.forEach(file => {
-          formData.append(`stepsList[${i}][stepImages]`, file.originFileObj);
+      // Ingredients
+      formData.append('ingredients', JSON.stringify(values.ingredientsList));
+      // Steps
+      const instructions = values.stepsList.map((step) => ({
+        text: step.stepDescription,
+        imageCount: step.stepImages?.length || 0 // <-- add this
+      }));
+      formData.append('instructions', JSON.stringify(instructions));
+
+      // Flatten all step images under 'stepImages'
+      values.stepsList.forEach((step) => {
+        step.stepImages?.forEach((file) => {
+          formData.append('stepImages', file.originFileObj);
         });
       });
 
-      values.tags?.forEach((tagObj, i) => {
-        formData.append(`tags[${i}]`, tagObj.tag);
+
+
+      // Tags
+      formData.append('tags', JSON.stringify(values.tags?.map((t) => t.tag) || []));
+
+      // Send to backend
+      const res = await axios.post('/api/recipes/addnew', formData, {
+        headers: { 'Content-Type': 'multipart/form-data' }, withCredentials: true,
       });
 
-      const res = await axios.post('/api/recipes', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-
-      if (res.data.success) {
+      if (res.data?.RecipeID) {
         message.success('Recipe submitted successfully!');
+        console.log('RecipeID:', res.data.RecipeID);
+      } else {
+        message.error('Submission failed!');
       }
     } catch (err) {
-      console.error(err);
-      message.error('Submit failed!');
+      console.error('Submit error:', err);
+
+      // If server responded with something
+      if (err.response) {
+        console.error('Response data:', err.response.data);
+        console.error('Response status:', err.response.status);
+        console.error('Response headers:', err.response.headers);
+      } else if (err.request) {
+        // Request was made but no response received
+        console.error('Request made but no response:', err.request);
+      } else {
+        // Something happened setting up the request
+        console.error('Error setting up request:', err.message);
+      }
+
+      message.error('Submit failed! See console for details.');
     }
   };
+
+
 
   const formItemLayout = {
     labelCol: {
@@ -140,38 +185,38 @@ function Sharepage() {
           rules={[{ required: true, message: 'โปรดใส่ชื่อเมนูอาหาร' }]}
           {...formItemLayoutWithOutLabel}
         >
-          <Input className='text-center' placeholder="ชื่อเมนูอาหาร" />
+          <Input className='text-center input-text' placeholder="ชื่อเมนูอาหาร" />
         </Form.Item>
 
         {/* Recipe Image */}
-        <Form.Item
-          name="recipeImage"
-          valuePropName="fileList"
-          getValueFromEvent={normFile}
-          {...formItemLayoutWithOutLabel}
-        >
-          <div style={{ textAlign: 'center' }}>
-            <Upload
-              accept="image/png, image/jpeg, image/jpg"
-              name="recipe"
-              listType="picture-card"
-              showUploadList={false}
-              maxCount={1}
-              beforeUpload={beforeUpload}
-              onChange={handleRecipeChange}
-            >
-              {recipeImageUrl ? (
-                <img src={recipeImageUrl} alt="recipe" style={{ width: '100%' }} />
-              ) : (
-                uploadRecipeButton
-              )}
-            </Upload>
-          </div>
+        <Row className='full-width'>
+          <Col span={18} offset={4} style={{ textAlign: 'center' }}>
+            <Form.Item>
+              <Upload
+                accept="image/png, image/jpeg"
+                listType="picture-card"
+                maxCount={1}
+                action={null}
+                beforeUpload={beforeUpload}
+                onChange={handleRecipeChange}
+                onPreview={handlePreview}
+                fileList={recipeFileList} // fully controlled
+              >
+                {recipeFileList.length >= 1 ? null : uploadRecipeButton}
+              </Upload>
+            </Form.Item>
 
-        </Form.Item>
+            <Modal open={previewVisible} footer={null} onCancel={() => setPreviewVisible(false)}>
+              <img alt="Preview" style={{ width: '100%' }} src={previewImage} />
+            </Modal>
+
+
+          </Col>
+        </Row>
+
 
         {/* Tags */}
-        <Form.Item label="Tags" {...formItemLayout}>
+        <Form.Item label="ชื่อแท็ก" {...formItemLayout}>
           <Form.List name="tags">
             {(fields, { add, remove }) => (
               <>
@@ -180,16 +225,16 @@ function Sharepage() {
                     <Form.Item
                       {...restField}
                       name={[name, 'tag']}
-                      rules={[{ required: true, message: 'Missing Tag Name' }]}
+                      rules={[{ required: true, message: 'โปรดใส่ชื่อแท็ก' }]}
                     >
-                      <Input placeholder="Tag Name" />
+                      <Input className='input-text' placeholder="ชื่อแท็ก" />
                     </Form.Item>
                     <MinusCircleOutlined onClick={() => remove(name)} />
                   </Space>
                 ))}
                 <Form.Item {...buttonItemLayout}>
-                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                    Add Tag
+                  <Button className='btn white-btn' type="default" onClick={() => add()} block icon={<PlusOutlined />}>
+                    เพิ่มแท็ก
                   </Button>
                 </Form.Item>
               </>
@@ -197,18 +242,13 @@ function Sharepage() {
           </Form.List>
         </Form.Item>
 
-        {/* Description */}
-        <Form.Item name="description" label="Description" {...formItemLayout}>
-          <TextArea autoSize={{ minRows: 3, maxRows: 3 }} />
-        </Form.Item>
-
         {/* Time */}
-        <Form.Item name="time" label="Time" {...formItemLayout}>
-          <InputNumber />
+        <Form.Item name="time" label="เวลาที่ใช้โดยประมาณ" {...formItemLayout}>
+          <InputNumber className='input-text' />
         </Form.Item>
 
         {/* Ingredients */}
-        <Form.Item label="Ingredients" {...formItemLayout}>
+        <Form.Item label="วัตถุดิบ" {...formItemLayout}>
           <Form.List name="ingredientsList">
             {(fields, { add, remove }) => (
               <>
@@ -217,25 +257,25 @@ function Sharepage() {
                     <Form.Item
                       {...restField}
                       name={[name, 'name']}
-                      rules={[{ required: true, message: 'Missing ingredient name' }]}
+                      rules={[{ required: true, message: 'โปรดใส่ชื่อวัตถุดิบ' }]}
                       style={{ flex: 2, minWidth: 120 }}
                     >
-                      <Input placeholder="Ingredient Name" />
+                      <Input className='input-text' placeholder="ชื่อวัตถุดิบ" />
                     </Form.Item>
 
                     <Form.Item
                       {...restField}
                       name={[name, 'quantity']}
-                      rules={[{ required: true, message: 'Missing quantity' }]}
+                      rules={[{ required: true, message: 'โปรดใส่จำนวน' }]}
                       style={{ flex: 1, minWidth: 80 }}
                     >
-                      <InputNumber placeholder="Quantity" style={{ width: '100%' }} />
+                      <InputNumber className='input-text' placeholder="จำนวน" style={{ width: '100%' }} />
                     </Form.Item>
 
                     <Form.Item
                       {...restField}
                       name={[name, 'unit']}
-                      rules={[{ required: true, message: 'Missing unit' }]}
+                      rules={[{ required: true, message: 'โปรดเลือกหน่วยที่ใช้' }]}
                       style={{ flex: 1, minWidth: 100 }}
                     >
                       <Select
@@ -263,8 +303,8 @@ function Sharepage() {
 
 
                 <Form.Item {...buttonItemLayout}>
-                  <Button type="dashed" onClick={() => add({ unit: 'กิโลกรัม' })} block icon={<PlusOutlined />}>
-                    Add Ingredient
+                  <Button className='btn white-btn' type="default" onClick={() => add({ unit: 'กิโลกรัม' })} block icon={<PlusOutlined />}>
+                    เพิ่มวัตถุดิบ
                   </Button>
                 </Form.Item>
               </>
@@ -274,7 +314,7 @@ function Sharepage() {
 
 
         {/* Cooking Steps */}
-        <Form.Item label="Cooking Steps" {...formItemLayout}>
+        <Form.Item label="ขั้นตอนการปรุงอาหาร" {...formItemLayout}>
           <Form.List name="stepsList">
             {(fields, { add, remove }) => (
               <>
@@ -292,13 +332,13 @@ function Sharepage() {
                       <Form.Item
                         {...restField}
                         name={[name, 'stepDescription']}
-                        rules={[{ required: true, message: 'Missing step description' }]}
+                        rules={[{ required: true, message: 'โปรดใส่รายละเอียดขั้นตอนการปรุงอาหาร' }]}
                         style={{ flex: 1, marginBottom: 0 }}
                       >
                         <TextArea
-                          placeholder="Step description"
+                          className='input-text full-width'
+                          placeholder="รายละเอียดขั้นตอนการปรุงอาหาร"
                           autoSize={{ minRows: 3, maxRows: 3 }}
-                          style={{ width: '100%' }}
                         />
                       </Form.Item>
                       {fields.length > 1 && <MinusCircleOutlined onClick={() => remove(name)} />}
@@ -314,8 +354,10 @@ function Sharepage() {
                         accept="image/png, image/jpeg, image/jpg"
                         listType="picture-card"
                         multiple
-                        action="/upload.do"
-                        beforeUpload={beforeUpload}
+                        action={null}
+                        beforeUpload={() => false}
+                        onPreview={handlePreview}
+
                       >
                         <div>
                           <PlusOutlined />
@@ -326,17 +368,29 @@ function Sharepage() {
                   </div>
                 ))}
                 <Form.Item {...buttonItemLayout}>
-                  <Button type="dashed" onClick={() => add()} block icon={<PlusOutlined />}>
-                    Add Step
+                  <Button className='btn white-btn' type="default" onClick={() => add()} block icon={<PlusOutlined />}>
+                    เพิ่มขั้นตอนการปรุงอาหาร
                   </Button>
                 </Form.Item>
               </>
             )}
           </Form.List>
+
         </Form.Item>
+        <Modal
+          open={previewVisible}
+          footer={null}
+          onCancel={() => setPreviewVisible(false)}
+        >
+          <img
+            alt="Preview"
+            style={{ width: '100%' }}
+            src={previewImage}
+          />
+        </Modal>
         {/* Single Recipe Video */}
-        <Form.Item label="Recipe Video" name="video" rules={[{ type: 'url' }]} {...formItemLayout}>
-          <Input placeholder="Video URL (YouTube, Vimeo, TikTok...)" />
+        <Form.Item label="วิดีโอสูตรอาหาร" name="video" rules={[{ type: 'url' }]} {...formItemLayout}>
+          <Input className='input-text' placeholder="Video URL (YouTube, Vimeo, TikTok...)" />
         </Form.Item>
 
         {/* Live Video Preview */}
@@ -353,8 +407,8 @@ function Sharepage() {
 
         {/* Submit */}
         <Form.Item {...formItemLayoutWithOutLabel}>
-          <Button type="primary" htmlType="submit">
-            Share Recipe
+          <Button className='btn white-btn' type="default" htmlType="submit" iconPosition="end" icon={<PlusOutlined />}>
+            แชร์สูตรของฉัน
           </Button>
         </Form.Item>
       </Form>

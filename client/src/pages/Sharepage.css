@@ -62,3 +62,20 @@
 .recipe-form {
   max-width: 655;
 }
+
+label {
+  color: var(--head-text) !important;
+  font-weight: bold !important;
+  font-size: larger !important;
+}
+
+.ant-input-number-input,
+.ant-select-selector {
+  background-color: var(--input-bg) !important;
+  border: var(--border-1-solid) var(--border-cl) !important;
+  color: var(--text-yellow) !important;
+}
+
+.ant-input-number-input::placeholder {
+  color: var(--place-holder-cl) !important;
+}

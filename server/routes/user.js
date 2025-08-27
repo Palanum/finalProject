@@ -10,7 +10,7 @@ router.post('/register', async (req, res) => {
   try {
     const { username, password, email } = req.body;
 
-    if ( !username || !password || !email ) {
+    if (!username || !password || !email) {
       return res.status(400).json({ error: 'All fields are required' });
     }
 
@@ -68,14 +68,14 @@ router.post('/login', async (req, res) => {
       role: user.role,
       status: user.status
     };
-
+    console.log('Session after login:', req.session);
     // Send JSON response with user info
     return res.json({
       message: 'Login successful',
       user: {
         id: user.id,
         username: user.username,
-        email:user.email,
+        email: user.email,
         role: user.role,
         status: user.status
       }
@@ -93,17 +93,19 @@ router.post('/logout', (req, res) => {
     if (err) {
       return res.status(500).json({ error: 'Logout failed' });
     }
+    console.log('Session after logout:', req.session);
     res.clearCookie('connect.sid'); // default cookie name
     res.json({ message: 'Logout successful' });
   });
+
 });
 
 // ===== AUTH CHECK =====
+// GET /api/users/me
 router.get('/me', (req, res) => {
-  if (!req.session.user) {
-    return res.status(401).json({ error: 'Not authenticated' });
-  }
-  res.json({ user: req.session.user });
+  if (req.session?.user) return res.json({ user: req.session.user });
+  res.status(401).json({ user: null });
 });
+
 
 module.exports = router;

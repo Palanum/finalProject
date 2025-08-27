@@ -13,11 +13,13 @@ const recipeRoute = require('./routes/recipe');
 const outsourceRoute = require('./routes/outsource');
 
 app.use(cors({
-  origin: 'http://localhost:3000',   // React app origin
+  origin: 'http://localhost:5173',   // React app origin
   credentials: true,                 // Allow cookies
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
 app.use(session({
   secret: process.env.SESSION_SECRET,
   resave: false,
@@ -33,6 +35,7 @@ app.use((req, res, next) => {
   // console.log(`${req.method} ${req.url}`);
   // console.log('Cookies:', req.headers.cookie);
   // console.log('Request headers size:', JSON.stringify(req.headers).length);
+  console.log('Session user:', req.session.user);
   next();
 });
 
@@ -41,6 +44,7 @@ app.use('/api', mainRoute);             // e.g., GET /api/health
 app.use('/api/users', userRoute);       // e.g., POST /api/users/login
 app.use('/api/recipes', recipeRoute);   // e.g., GET /api/recipes/
 app.use('/api/outsource', outsourceRoute); // e.g., GET /api/outsource/
+
 
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
