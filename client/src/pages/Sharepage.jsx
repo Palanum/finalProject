@@ -33,12 +33,6 @@ function Sharepage() {
     setPreviewVisible(true);
   };
   const normFile = e => (Array.isArray(e) ? e : e?.fileList);
-  useEffect(() => {
-    if (!user) {
-      message.error('You must be logged in to share recipes');
-      navigate('/login');
-    }
-  }, [user]);
 
   const getBase64 = (file, callback) => {
     const reader = new FileReader();
@@ -145,24 +139,24 @@ function Sharepage() {
 
   const formItemLayout = {
     labelCol: {
-      xs: { span: 4 },
-      sm: { span: 4 }
+      md: { span: 4 },
+      lg: { span: 4 }
     },
     wrapperCol: {
-      xs: { span: 14 },
-      sm: { span: 18 }
+      md: { span: 14 },
+      lg: { span: 18 }
     },
   };
   const formItemLayoutWithOutLabel = {
     wrapperCol: {
-      xs: { span: 14, offset: 4 },
-      sm: { span: 18, offset: 4 }
+      md: { span: 14, offset: 4 },
+      lg: { span: 18, offset: 4 }
     },
   };
   const buttonItemLayout = {
     wrapperCol: {
-      xs: { span: 6, offset: 0 },
-      sm: { span: 10, offset: 0 }
+      md: { span: 6, offset: 0 },
+      lg: { span: 10, offset: 0 }
     },
   };
   return (
@@ -243,8 +237,9 @@ function Sharepage() {
         </Form.Item>
 
         {/* Time */}
-        <Form.Item name="time" label="เวลาที่ใช้โดยประมาณ" {...formItemLayout}>
+        <Form.Item name="time" label="เวลาที่ใช้โดยประมาณ (นาที)" {...formItemLayout}>
           <InputNumber className='input-text' />
+          <span>นาที</span>
         </Form.Item>
 
         {/* Ingredients */}

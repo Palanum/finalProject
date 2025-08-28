@@ -35,7 +35,7 @@ app.use((req, res, next) => {
   // console.log(`${req.method} ${req.url}`);
   // console.log('Cookies:', req.headers.cookie);
   // console.log('Request headers size:', JSON.stringify(req.headers).length);
-  console.log('Session user:', req.session.user);
+  // console.log('Session user:', req.session.user);
   next();
 });
 

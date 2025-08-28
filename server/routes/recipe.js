@@ -315,6 +315,7 @@ router.post(
         videoURL,
         ingredients,
         instructions,
+        time,
         tags, // categories/tags
       } = req.body;
 
@@ -326,8 +327,8 @@ router.post(
 
       // 1️⃣ Insert recipe WITHOUT CategoryID
       const [recipeResult] = await conn.query(
-        'INSERT INTO recipes (UserID, Title, videoURL) VALUES (?, ?, ?)',
-        [UserID, title, videoURL || null]
+        'INSERT INTO recipes (UserID, Title, videoURL,time) VALUES (?, ?, ?,?)',
+        [UserID, title, videoURL || null, time || null]
       );
       const RecipeID = recipeResult.insertId;
 
@@ -343,13 +344,20 @@ router.post(
         );
       }
 
+
       // 3️⃣ Insert tags/categories into many-to-many table
       for (const tagName of tagsArr) {
         if (!tagName) continue;
+
+        // Find existing category or create a new one
         const CategoryID = await findOrCreateCategory(conn, tagName);
+
+        if (!CategoryID) continue;
+
+        // Insert into junction table
         await conn.query(
-          'UPDATE recipes SET CategoryID= ? WHERE RecipeID = ?',
-          [CategoryID, RecipeID]
+          'INSERT INTO recipe_category (RecipeID, CategoryID) VALUES (?, ?) ON DUPLICATE KEY UPDATE RecipeID = RecipeID',
+          [RecipeID, CategoryID]
         );
       }
 
@@ -370,11 +378,11 @@ router.post(
       for (const step of stepsArr) {
         const [insRes] = await conn.query(
           'INSERT INTO instruction (RecipeID, details) VALUES (?, ?)',
-          [RecipeID, step.stepDescription || '']
+          [RecipeID, step.text || '']
         );
         const instructionId = insRes.insertId;
 
-        const count = step.stepImages?.length || 0;
+        const count = step.imageCount || 0;
         for (let i = 0; i < count; i++) {
           const file = allStepImages[stepImageIndex];
           if (!file) continue;
@@ -389,6 +397,7 @@ router.post(
           );
           stepImageIndex++;
         }
+        // console.log(`Inserted step ${instructionId} with ${count} images`);
       }
 
       await conn.commit();

@@ -1,5 +1,5 @@
 import './Button.css';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -13,28 +13,34 @@ import { fab } from '@fortawesome/free-brands-svg-icons'
 library.add(fas, far, fab)
 
 function Loginbtn() {
-    const navigate = useNavigate();
+  const navigate = useNavigate();
+  const location = useLocation();
   return (
-    <button className='btn green-btn' onClick={() => navigate('/login')}>
-        login <FontAwesomeIcon icon="fa-solid fa-arrow-right-to-bracket" />
+    <button
+      className='btn green-btn'
+      onClick={() => navigate('/login', { state: { from: location } })}
+    >
+      login <FontAwesomeIcon icon="fa-solid fa-arrow-right-to-bracket" />
     </button>
   );
 }
 
 function Sharebtn() {
-   const navigate = useNavigate();
-    const { user } = useContext(AuthContext); // Get user from context
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { user } = useContext(AuthContext);
+  // console.log('Current location in Sharebtn:', location);
+  const handleShare = () => {
+    if (user) {
+      navigate('/share');
+    } else {
+      navigate('/login', { state: { from: { pathname: '/share' } } });
+    }
+  };
 
-    const handleShare = () => {
-        if (user) {
-            navigate('/share');
-        } else {
-            navigate('/login');
-        }
-    };
   return (
-    <button className='btn white-btn' onClick={() => handleShare()}>
-        แชร์สูตรของฉัน +
+    <button className='btn white-btn' onClick={handleShare}>
+      แชร์สูตรของฉัน +
     </button>
   );
 }

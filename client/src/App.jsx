@@ -20,13 +20,20 @@ function App() {
       <NavBar isLoggedIn={isLoggedIn} />
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/profile" element={<Profile />} />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <Profile />
+            </ProtectedRoute>
+          }
+        />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route
           path="/share"
           element={
-            <ProtectedRoute>
+            <ProtectedRoute messageText="You must be logged in to share recipes">
               <Sharepage />
             </ProtectedRoute>
           }

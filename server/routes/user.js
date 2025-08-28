@@ -68,7 +68,7 @@ router.post('/login', async (req, res) => {
       role: user.role,
       status: user.status
     };
-    console.log('Session after login:', req.session);
+    // console.log('Session after login:', req.session);
     // Send JSON response with user info
     return res.json({
       message: 'Login successful',
@@ -93,7 +93,7 @@ router.post('/logout', (req, res) => {
     if (err) {
       return res.status(500).json({ error: 'Logout failed' });
     }
-    console.log('Session after logout:', req.session);
+    // console.log('Session after logout:', req.session);
     res.clearCookie('connect.sid'); // default cookie name
     res.json({ message: 'Logout successful' });
   });

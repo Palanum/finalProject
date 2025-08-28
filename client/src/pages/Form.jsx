@@ -1,58 +1,60 @@
 import React, { useState, useContext } from 'react'
 import './Form.css'
 import '../components/Button.css'
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 
 function Login() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const location = useLocation();
   const navigate = useNavigate();
   const { login } = useContext(AuthContext);
+  const from = location.state?.from?.pathname || "/";
+  // console.log('Redirecting to:', from);
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setError(null);
 
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setError(null);
-
-  try {
-    const res = await fetch('/api/users/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ username, password }),
-    });
-
-    // console.log('Response status:', res.status);
-
-    const text = await res.text();  // read raw response text first
-    // console.log('Raw response:', text);
-
-    if (!text) {
-      setError('Empty response from server');
-      return;
-    }
-
-    let data;
     try {
-      data = JSON.parse(text);  // parse only if text exists
-    } catch {
-      setError('Invalid JSON response from server');
-      return;
-    }
+      const res = await fetch('/api/users/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ username, password }),
+      });
 
-    if (!res.ok) {
-      setError(data.error || 'Login failed');
-      return;
-    }
+      // console.log('Response status:', res.status);
 
-    login(data.user);
-    navigate('/');
-  } catch (err) {
-    console.error('Login fetch error:', err);
-    setError('Network error');
-  }
-};
+      const text = await res.text();  // read raw response text first
+      // console.log('Raw response:', text);
+
+      if (!text) {
+        setError('Empty response from server');
+        return;
+      }
+
+      let data;
+      try {
+        data = JSON.parse(text);  // parse only if text exists
+      } catch {
+        setError('Invalid JSON response from server');
+        return;
+      }
+
+      if (!res.ok) {
+        setError(data.error || 'Login failed');
+        return;
+      }
+
+      login(data.user);
+      navigate(from, { replace: true });
+    } catch (err) {
+      console.error('Login fetch error:', err);
+      setError('Network error');
+    }
+  };
 
 
   return (
@@ -84,7 +86,7 @@ const handleSubmit = async (e) => {
           />
         </div>
 
-        {error && <p style={{color: 'red'}}>{error}</p>}
+        {error && <p style={{ color: 'red' }}>{error}</p>}
 
         <div className="flex just-center">
           <button type="submit" className="btn green-btn">
@@ -256,4 +258,4 @@ function Changepass() {
   );
 }
 
-export {Login,Register,Changepass} 
+export { Login, Register, Changepass } 
