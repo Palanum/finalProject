@@ -412,18 +412,218 @@ router.post(
   }
 );
 
-
-
-
-
-router.post('/', (req, res) => {
+// Get all recipes with tags
+router.get("/", async (req, res) => {
   try {
-    const { RecipeID } = req.body;
-    res.json({ msg: 'Get recipe', recipe: { RecipeID } });
-  } catch (error) {
-    console.error('Error getting recipe:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    const [rows] = await pool.query(
+      `SELECT r.RecipeID, r.Title, r.time, r.ImageURL, u.username, t.Name
+       FROM recipes r
+       JOIN users u ON r.UserID = u.id
+       LEFT JOIN recipe_category rt ON r.RecipeID = rt.RecipeID
+       LEFT JOIN categories t ON rt.CategoryID = t.CategoryID
+       ORDER BY r.RecipeID DESC`
+    );
+
+    // Group tags under each recipe
+    const recipes = {};
+    rows.forEach(row => {
+      if (!recipes[row.RecipeID]) {
+        recipes[row.RecipeID] = {
+          RecipeID: row.RecipeID,
+          Title: row.Title,
+          time: row.time,
+          ImageURL: row.ImageURL,
+          username: row.username,
+          categories: []
+        };
+      }
+      if (row.Name) {
+        recipes[row.RecipeID].categories.push(row.Name);
+      }
+    });
+
+    res.json(Object.values(recipes));
+  } catch (err) {
+    console.error("Error fetching recipes:", err);
+    res.status(500).json({ error: "Internal server error" });
   }
 });
+
+
+// Search with optional filters
+router.get("/search", async (req, res) => {
+  const { q, category } = req.query;
+  let sql = `
+    SELECT r.RecipeID, r.Title, r.ImageURL, r.time, u.username, c.Name
+    FROM recipes r
+    JOIN users u ON r.UserID = u.id
+    LEFT JOIN recipe_category rc ON r.RecipeID = rc.RecipeID
+    LEFT JOIN categories c ON rc.CategoryID = c.CategoryID
+    WHERE 1=1
+  `;
+  const params = [];
+
+  // search by keyword
+  if (q) {
+    sql += " AND r.Title LIKE ?";
+    params.push(`%${q}%`);
+  }
+
+  // filter by category
+  if (category) {
+    sql += " AND c.Name = ?";
+    params.push(category);
+  }
+
+  sql += " ORDER BY r.RecipeID DESC";
+
+  try {
+    const [rows] = await pool.query(sql, params);
+
+    // ✅ group categories per recipe
+    const recipes = {};
+    rows.forEach(row => {
+      if (!recipes[row.RecipeID]) {
+        recipes[row.RecipeID] = {
+          RecipeID: row.RecipeID,
+          Title: row.Title,
+          ImageURL: row.ImageURL,
+          time: row.time,
+          username: row.username,
+          categories: []
+        };
+      }
+      if (row.Name) {
+        recipes[row.RecipeID].categories.push(row.Name);
+      }
+    });
+
+    res.json(Object.values(recipes));
+  } catch (err) {
+    console.error("Search error:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+const unitToGram = {
+  'กิโลกรัม': 1000,
+  'กรัม': 1,
+  'ลิตร': 1000,    // assume density = 1 g/ml
+  'มิลลิลิตร': 1,
+  'ช้อนชา': 5,
+  'ช้อนโต๊ะ': 15,
+  'ถ้วย': 240
+};
+router.get('/:id', async (req, res) => {
+  try {
+    const [rows] = await pool.query(
+      `SELECT 
+         r.RecipeID, r.Title, r.time, r.ImageURL, r.videoURL,
+         u.id AS UserID, u.username,
+         t.Name AS CategoryName,
+         i.instructionID, i.details,
+         ii.imageURL AS InstructionImage,
+         ing.IngredientID, ing.Quantity, ing.Unit,
+         ing_data.name_th AS IngredientName,
+         ing_data.calories, ing_data.protein, ing_data.fat, ing_data.carbs
+       FROM recipes r
+       JOIN users u ON r.UserID = u.id
+       LEFT JOIN recipe_category rt ON r.RecipeID = rt.RecipeID
+       LEFT JOIN categories t ON rt.CategoryID = t.CategoryID
+       LEFT JOIN instruction i ON r.RecipeID = i.RecipeID
+       LEFT JOIN instruction_img ii ON i.instructionID = ii.instructionID
+       LEFT JOIN ingredients ing ON r.RecipeID = ing.RecipeID
+       LEFT JOIN data_ingredients ing_data ON ing.RawIngredientID = ing_data.RawIngredientID
+       WHERE r.RecipeID = ?`,
+      [req.params.id]
+    );
+
+    if (rows.length === 0) {
+      return res.status(404).json({ error: "Recipe not found" });
+    }
+
+    const recipe = {
+      RecipeID: rows[0].RecipeID,
+      Title: rows[0].Title,
+      time: rows[0].time,
+      ImageURL: rows[0].ImageURL,
+      videoURL: rows[0].videoURL || '',
+      user: {
+        id: rows[0].UserID,
+        username: rows[0].username
+      },
+      categories: [],
+      instructions: [],
+      ingredients: [],
+      nutrients: { calories: 0, protein: 0, fat: 0, carbs: 0 }
+    };
+
+    const categoriesSet = new Set();
+    const instructionsMap = new Map();
+    const ingredientsSet = new Set();
+    const nutrientTotals = { calories: 0, protein: 0, fat: 0, carbs: 0 };
+
+    rows.forEach(r => {
+      // Categories
+      if (r.CategoryName && !categoriesSet.has(r.CategoryName)) {
+        categoriesSet.add(r.CategoryName);
+        recipe.categories.push(r.CategoryName);
+      }
+
+      // Instructions
+      if (r.instructionID) {
+        if (!instructionsMap.has(r.instructionID)) {
+          instructionsMap.set(r.instructionID, {
+            id: r.instructionID,
+            text: r.details, // or r.details if that's your column
+            images: new Set()   // use Set to avoid duplicate URLs
+          });
+        }
+        if (r.InstructionImage) {
+          instructionsMap.get(r.instructionID).images.add(r.InstructionImage);
+        }
+      }
+
+      recipe.instructions = Array.from(instructionsMap.values()).map(instr => ({
+        id: instr.id,
+        text: instr.text,
+        images: Array.from(instr.images)
+      }));
+
+      // Ingredients
+      if (r.IngredientID && !ingredientsSet.has(r.IngredientID)) {
+        ingredientsSet.add(r.IngredientID);
+        recipe.ingredients.push({
+          id: r.IngredientID,
+          name: r.IngredientName,
+          quantity: r.Quantity,
+          unit: r.Unit
+        });
+        // Calculate actual weight in grams
+        const weightInGrams = r.Quantity * unitToGram[r.Unit];
+
+        // Calculate nutrient contribution
+        const multiplier = weightInGrams / 100;
+
+        nutrientTotals.calories += r.calories * multiplier;
+        nutrientTotals.protein += r.protein * multiplier;
+        nutrientTotals.fat += r.fat * multiplier;
+        nutrientTotals.carbs += r.carbs * multiplier;
+
+      }
+    });
+
+
+    // Add nutrient totals
+    recipe.nutrients = nutrientTotals;
+    // console.dir(recipe, { depth: null });
+    res.json(recipe);
+  } catch (err) {
+    console.error("Error fetching recipe:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+
+
 
 module.exports = router;

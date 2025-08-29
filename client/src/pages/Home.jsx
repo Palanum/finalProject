@@ -54,7 +54,7 @@ function Home() {
                 />
                 <div style={{ marginTop: 8 }}>
                   {recipe.categories.map((cat, i) => (
-                    <Tag key={i} color="green">
+                    <Tag key={i} bordered={false} className='green-tag'>
                       {cat}
                     </Tag>
                   ))}

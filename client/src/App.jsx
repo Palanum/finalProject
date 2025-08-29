@@ -8,8 +8,9 @@ import './App.css';
 import Home from './pages/Home';
 import { Login, Register } from './pages/Form'
 import Profile from "./pages/Profile";
-import Search from './pages/Search';
+import RecipesAndSearchPage from './pages/Search';
 import Sharepage from './pages/Sharepage';
+import Recipespage from './pages/Recipespage';
 import { AuthContext } from './context/AuthContext';
 import ProtectedRoute from './components/Protectroute';
 function App() {
@@ -39,8 +40,9 @@ function App() {
           }
         />
 
-        <Route path="/recipes" element={<p>search recipes page</p>} />
-        <Route path="/search" element={<Search />} />
+        <Route path="/recipes" element={<RecipesAndSearchPage />} />
+        <Route path="/search" element={<RecipesAndSearchPage />} />
+        <Route path="/recipes/:id" element={<Recipespage />} />
         <Route path="*" element={<p>404 Not Found</p>} />
       </Routes>
       <Footer />

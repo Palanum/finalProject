@@ -54,7 +54,7 @@ function Normalbtn({ NavLink, styleValue, text }) {
     }
   };
   return (
-    <button className={`btn ${stylebtn}`} onClick={() => handleClick}>
+    <button className={`btn ${stylebtn}`} onClick={() => handleClick()}>
       {text}
     </button>
   );
