@@ -515,10 +515,15 @@ const unitToGram = {
 };
 router.get('/:id', async (req, res) => {
   try {
+    const userId = req.session.user?.id || 0;
+    const recipeId = req.params.id;
+
     const [rows] = await pool.query(
       `SELECT 
          r.RecipeID, r.Title, r.time, r.ImageURL, r.videoURL,
          u.id AS UserID, u.username,
+         CASE WHEN fav.UserID IS NULL THEN 0 ELSE 1 END AS isFavorite,
+         CASE WHEN l.UserID IS NULL THEN 0 ELSE 1 END AS isLike,
          t.Name AS CategoryName,
          i.instructionID, i.details,
          ii.imageURL AS InstructionImage,
@@ -528,25 +533,38 @@ router.get('/:id', async (req, res) => {
        FROM recipes r
        JOIN users u ON r.UserID = u.id
        LEFT JOIN recipe_category rt ON r.RecipeID = rt.RecipeID
+       LEFT JOIN favorites fav ON r.RecipeID = fav.RecipeID AND fav.UserID = ?
+       LEFT JOIN likes l ON r.RecipeID = l.RecipeID AND l.UserID = ?
        LEFT JOIN categories t ON rt.CategoryID = t.CategoryID
        LEFT JOIN instruction i ON r.RecipeID = i.RecipeID
        LEFT JOIN instruction_img ii ON i.instructionID = ii.instructionID
        LEFT JOIN ingredients ing ON r.RecipeID = ing.RecipeID
        LEFT JOIN data_ingredients ing_data ON ing.RawIngredientID = ing_data.RawIngredientID
        WHERE r.RecipeID = ?`,
-      [req.params.id]
+      [userId, userId, recipeId]
     );
 
     if (rows.length === 0) {
       return res.status(404).json({ error: "Recipe not found" });
     }
-
+    const [commentRows] = await pool.query(
+      `SELECT c.CommentID, c.Content, c.type, c.CreatedAt,
+              c.ParentCommentID,
+              u.id AS UserID, u.username
+       FROM comments c
+       LEFT JOIN users u ON c.UserID = u.id
+       WHERE c.RecipeID = ?
+       ORDER BY c.CreatedAt ASC`,
+      [recipeId]
+    );
     const recipe = {
       RecipeID: rows[0].RecipeID,
       Title: rows[0].Title,
       time: rows[0].time,
       ImageURL: rows[0].ImageURL,
       videoURL: rows[0].videoURL || '',
+      isFavorite: rows[0].isFavorite === 1,
+      isLike: rows[0].isLike === 1,
       user: {
         id: rows[0].UserID,
         username: rows[0].username
@@ -554,8 +572,39 @@ router.get('/:id', async (req, res) => {
       categories: [],
       instructions: [],
       ingredients: [],
-      nutrients: { calories: 0, protein: 0, fat: 0, carbs: 0 }
+      nutrients: { calories: 0, protein: 0, fat: 0, carbs: 0 },
+      comments: []
     };
+    // Build a nested comment structure
+    const commentsMap = new Map();
+    const commentsTree = [];
+    commentRows.forEach(c => {
+      const comment = {
+        id: c.CommentID,
+        content: c.Content,
+        type: c.type,
+        createdAt: c.CreatedAt,
+        user: {
+          id: c.UserID,
+          username: c.username
+        },
+        replies: []
+      };
+
+      commentsMap.set(c.CommentID, comment);
+
+      if (c.ParentCommentID) {
+        // it's a reply
+        const parent = commentsMap.get(c.ParentCommentID);
+        if (parent) parent.replies.push(comment);
+      } else {
+        // top-level comment
+        commentsTree.push(comment);
+      }
+    });
+
+    recipe.comments = commentsTree;
+
 
     const categoriesSet = new Set();
     const instructionsMap = new Map();
@@ -574,20 +623,14 @@ router.get('/:id', async (req, res) => {
         if (!instructionsMap.has(r.instructionID)) {
           instructionsMap.set(r.instructionID, {
             id: r.instructionID,
-            text: r.details, // or r.details if that's your column
-            images: new Set()   // use Set to avoid duplicate URLs
+            text: r.details,
+            images: new Set()
           });
         }
         if (r.InstructionImage) {
           instructionsMap.get(r.instructionID).images.add(r.InstructionImage);
         }
       }
-
-      recipe.instructions = Array.from(instructionsMap.values()).map(instr => ({
-        id: instr.id,
-        text: instr.text,
-        images: Array.from(instr.images)
-      }));
 
       // Ingredients
       if (r.IngredientID && !ingredientsSet.has(r.IngredientID)) {
@@ -598,27 +641,81 @@ router.get('/:id', async (req, res) => {
           quantity: r.Quantity,
           unit: r.Unit
         });
-        // Calculate actual weight in grams
-        const weightInGrams = r.Quantity * unitToGram[r.Unit];
 
-        // Calculate nutrient contribution
-        const multiplier = weightInGrams / 100;
-
+        // Calculate nutrients (assumes r.Quantity is in grams/ml)
+        const multiplier = r.Quantity / 100;
         nutrientTotals.calories += r.calories * multiplier;
         nutrientTotals.protein += r.protein * multiplier;
         nutrientTotals.fat += r.fat * multiplier;
         nutrientTotals.carbs += r.carbs * multiplier;
-
       }
     });
 
+    // Finalize instructions
+    recipe.instructions = Array.from(instructionsMap.values()).map(instr => ({
+      id: instr.id,
+      text: instr.text,
+      images: Array.from(instr.images)
+    }));
 
-    // Add nutrient totals
-    recipe.nutrients = nutrientTotals;
-    // console.dir(recipe, { depth: null });
+    // Round nutrient totals
+    recipe.nutrients = {
+      calories: Math.round(nutrientTotals.calories),
+      protein: Math.round(nutrientTotals.protein * 10) / 10,
+      fat: Math.round(nutrientTotals.fat * 10) / 10,
+      carbs: Math.round(nutrientTotals.carbs * 10) / 10
+    };
+
     res.json(recipe);
   } catch (err) {
     console.error("Error fetching recipe:", err);
+    res.status(500).json({ error: "Internal server error" });
+  }
+});
+
+// POST /api/recipes/:id/comments
+router.post('/:id/comments', async (req, res) => {
+  const userId = req.session.user?.id;
+  const recipeId = req.params.id;
+  const { content, parentId } = req.body;
+
+  if (!userId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+
+  if (!content || !content.trim()) {
+    return res.status(400).json({ error: "Comment cannot be empty" });
+  }
+
+  try {
+    const [result] = await pool.query(
+      "INSERT INTO comments (RecipeID, UserID, ParentCommentID, Content, type) VALUES (?, ?, ?, ?, 'normal')",
+      [recipeId, userId, parentId || null, content]
+    );
+
+    // Return the created comment
+    const [rows] = await pool.query(
+      `SELECT c.CommentID, c.Content, c.type, c.CreatedAt,
+              c.ParentCommentID,
+              u.id AS UserID, u.username
+       FROM comments c
+       LEFT JOIN users u ON c.UserID = u.id
+       WHERE c.CommentID = ?`,
+      [result.insertId]
+    );
+
+    res.status(201).json({
+      comment: {
+        id: rows[0].CommentID,
+        content: rows[0].Content,
+        type: rows[0].type,
+        createdAt: rows[0].CreatedAt,
+        user: { id: rows[0].UserID, username: rows[0].username },
+        replies: []
+      }
+    });
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ error: "Internal server error" });
   }
 });

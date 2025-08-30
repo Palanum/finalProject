@@ -100,6 +100,83 @@ router.post('/logout', (req, res) => {
 
 });
 
+router.post('/:id/favorite', (req, res) => {
+  const { id } = req.params; // RecipeID
+  const { action } = req.body;
+
+  if (!req.session?.user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const userId = req.session.user.id;
+  // console.log(`User ${userId} requests to ${action} favorite for recipe ${id}`);
+  if (action === 'add') {
+    pool.query(
+      'INSERT IGNORE INTO favorites (UserID, RecipeID) VALUES (?, ?)',
+      [userId, id],
+      (error) => {
+        if (error) {
+          console.error('Error adding favorite:', error);
+          return res.status(500).json({ error: 'Internal server error' });
+        }
+        res.status(200).json({ message: 'Added to favorites', isFavorite: true });
+      }
+    );
+  } else if (action === 'remove') {
+    pool.query(
+      'DELETE FROM favorites WHERE UserID = ? AND RecipeID = ?',
+      [userId, id],
+      (error) => {
+        if (error) {
+          console.error('Error removing favorite:', error);
+          return res.status(500).json({ error: 'Internal server error' });
+        }
+        res.status(200).json({ message: 'Removed from favorites', isFavorite: false });
+      }
+    );
+  } else {
+    res.status(400).json({ error: 'Invalid action' });
+  }
+});
+
+router.post('/:id/like', (req, res) => {
+  const { id } = req.params; // RecipeID
+  const { action } = req.body;
+
+  if (!req.session?.user) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+
+  const userId = req.session.user.id;
+  // console.log(`User ${userId} requests to ${action} favorite for recipe ${id}`);
+  if (action === 'add') {
+    pool.query(
+      'INSERT IGNORE INTO likes (UserID, RecipeID) VALUES (?, ?)',
+      [userId, id],
+      (error) => {
+        if (error) {
+          console.error('Error adding like:', error);
+          return res.status(500).json({ error: 'Internal server error' });
+        }
+        res.status(200).json({ message: 'Added to likes', isLike: true });
+      }
+    );
+  } else if (action === 'remove') {
+    pool.query(
+      'DELETE FROM likes WHERE UserID = ? AND RecipeID = ?',
+      [userId, id],
+      (error) => {
+        if (error) {
+          console.error('Error removing like:', error);
+          return res.status(500).json({ error: 'Internal server error' });
+        }
+        res.status(200).json({ message: 'Removed from likes', isLike: false });
+      }
+    );
+  } else {
+    res.status(400).json({ error: 'Invalid action' });
+  }
+});
 // ===== AUTH CHECK =====
 // GET /api/users/me
 router.get('/me', (req, res) => {

@@ -30,7 +30,7 @@ router.get('/home', async (req, res) => {
         username: r.username
       }
     }));
-    console.log('Formatted recipes:', formattedRecipes);
+    // console.log('Formatted recipes:', formattedRecipes);
     res.json(formattedRecipes);
   } catch (err) {
     console.error('Error fetching recipes:', err);
