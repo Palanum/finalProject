@@ -3,6 +3,7 @@ import './Form.css'
 import '../components/Button.css'
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
+import { Form, Input, Button, message } from "antd";
 
 function Login() {
   const [username, setUsername] = useState('');
@@ -224,38 +225,100 @@ function Register() {
   );
 }
 
-function Changepass() {
-  return (
-    <div className="change-pass-form-section">
-      <form className="flex flex-column gap-1 form">
-        <h2 className="heading">เปลี่ยนรหัสผ่าน</h2>
-        <div className="flex flex-column gap-1">
-          <label htmlFor="oldPassword">รหัสผ่านเก่า</label>
-          <input
-            type="password"
-            id="oldPassword"
-            placeholder="รหัสผ่านเก่า"
-            required
-          />
-        </div>
-        <div className="flex flex-column gap-1">
-          <label htmlFor="newPassword">รหัสผ่านใหม่</label>
-          <input
-            type="password"
-            id="newPassword"
-            placeholder="รหัสผ่านใหม่"
-            required
-          />
-        </div>
 
-        <div className="flex just-center">
-          <button type="submit" className="btn green-btn">
+function Changepass() {
+  const [loading, setLoading] = useState(false);
+
+  const onFinish = async (values) => {
+    const { oldPassword, newPassword, confirmPassword } = values;
+
+    if (newPassword !== confirmPassword) {
+      message.error("รหัสผ่านใหม่ไม่ตรงกัน ❌");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Example API call
+      const res = await fetch("/api/users/change-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ oldPassword, newPassword }),
+      });
+
+      if (res.ok) {
+        message.success("เปลี่ยนรหัสผ่านสำเร็จ ✅");
+      } else {
+        const data = await res.json();
+        message.error(data.error || "เกิดข้อผิดพลาด");
+      }
+    } catch (err) {
+      message.error("ไม่สามารถเชื่อมต่อกับเซิร์ฟเวอร์ ❌");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 400, margin: "0 auto" }}>
+      <h2 style={{ textAlign: "center", marginBottom: 24 }}>เปลี่ยนรหัสผ่าน</h2>
+      <Form
+        layout="vertical"
+        onFinish={onFinish}
+        autoComplete="off"
+      >
+        <Form.Item
+          label="รหัสผ่านเก่า"
+          name="oldPassword"
+          rules={[{ required: true, message: "กรุณากรอกรหัสผ่านเก่า" }]}
+        >
+          <Input.Password placeholder="รหัสผ่านเก่า" />
+        </Form.Item>
+
+        <Form.Item
+          label="รหัสผ่านใหม่"
+          name="newPassword"
+          rules={[
+            { required: true, message: "กรุณากรอกรหัสผ่านใหม่" },
+            { min: 6, message: "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร" },
+          ]}
+        >
+          <Input.Password placeholder="รหัสผ่านใหม่" />
+        </Form.Item>
+
+        <Form.Item
+          label="ยืนยันรหัสผ่านใหม่"
+          name="confirmPassword"
+          dependencies={["newPassword"]}
+          rules={[
+            { required: true, message: "กรุณายืนยันรหัสผ่านใหม่" },
+            ({ getFieldValue }) => ({
+              validator(_, value) {
+                if (!value || getFieldValue("newPassword") === value) {
+                  return Promise.resolve();
+                }
+                return Promise.reject(new Error("รหัสผ่านใหม่ไม่ตรงกัน"));
+              },
+            }),
+          ]}
+        >
+          <Input.Password placeholder="ยืนยันรหัสผ่านใหม่" />
+        </Form.Item>
+
+        <Form.Item>
+          <Button
+            type="primary"
+            htmlType="submit"
+            block
+            loading={loading}
+          >
             เปลี่ยนรหัสผ่าน
-          </button>
-        </div>
-      </form>
+          </Button>
+        </Form.Item>
+      </Form>
     </div>
   );
 }
+
 
 export { Login, Register, Changepass } 

@@ -1,9 +1,11 @@
 import './NavBar.css';
 import logo from '../assets/images/rezcook_logo.png';
-import { Loginbtn,Sharebtn } from './Button';
+import { Loginbtn, Sharebtn } from './Button';
 import { Link } from 'react-router-dom';
 import { useEffect, useState, useRef, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
+
+import { Badge } from "antd";
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { library } from '@fortawesome/fontawesome-svg-core'
@@ -15,10 +17,10 @@ import { fab } from '@fortawesome/free-brands-svg-icons'
 
 library.add(fas, far, fab)
 
-export default function NavBar({ isLoggedIn}) {
+export default function NavBar({ isLoggedIn }) {
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-
+  const count = useUnreadAlarms();
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -38,39 +40,45 @@ export default function NavBar({ isLoggedIn}) {
 
   return (
     <nav className={`nav-bar ${showNavbar ? 'visible' : 'hidden'}`}>
-  <div className="nav-content">
-    {/* Left group */}
-    <ul className="nav-group nav-left">
-      <li><Link to="/">หน้าหลัก</Link></li>
-      <li><Link to="/recipes">ค้นหา <FontAwesomeIcon icon="fa-solid fa-magnifying-glass" /></Link></li>
-    </ul>
+      <div className="nav-content">
+        {/* Left group */}
+        <ul className="nav-group nav-left">
+          <li><Link to="/">หน้าหลัก</Link></li>
+          <li><Link to="/recipes">ค้นหา <FontAwesomeIcon icon="fa-solid fa-magnifying-glass" /></Link></li>
+        </ul>
 
-    {/* Center logo */}
-    <div className="flex-1 logo-container">
-      <Link to="/">
-        <div className="nav-logo">
-            <img src={logo} className="App-logo" alt="logo" />
+        {/* Center logo */}
+        <div className="flex-1 logo-container">
+          <Link to="/">
+            <div className="nav-logo">
+              <img src={logo} className="App-logo" alt="logo" />
+            </div>
+          </Link>
         </div>
-      </Link>
-    </div>
-    {/* Right group */}
-    <ul className="nav-group nav-right">
-      <li><Sharebtn /></li>
-      {isLoggedIn ? (
-        <>
-          <li><Link to="/profile#alarm"><FontAwesomeIcon icon="fa-solid fa-bell" /></Link></li>
-          <li><ProfileMenu/></li>
-        </>
-      ) : (
-        <li><Loginbtn /></li>
-      )}
-    </ul>
-  </div>
-</nav>
+        {/* Right group */}
+        <ul className="nav-group nav-right">
+          <li><Sharebtn /></li>
+          {isLoggedIn ? (
+            <>
+              <li>
+                <Badge count={count} size="small">
+                  <Link to="/profile#alarm">
+                    <FontAwesomeIcon icon="fa-solid fa-bell" />
+                  </Link>
+                </Badge>
+              </li>
+              <li><ProfileMenu count={count} /></li>
+            </>
+          ) : (
+            <li><Loginbtn /></li>
+          )}
+        </ul>
+      </div>
+    </nav>
   );
 }
 
-function ProfileMenu() {
+function ProfileMenu({ count }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef();
   const { logout } = useContext(AuthContext);
@@ -98,10 +106,30 @@ function ProfileMenu() {
           <li><Link to="/profile#profile">My Profile</Link></li>
           <li><Link to="/profile#favorite">Favorite</Link></li>
           <li><Link to="/profile#myRecipe">My Recipes</Link></li>
-          <li><Link to="/profile#alarm">Notifications</Link></li>
+          <li>
+            <Badge count={count} size="small">
+              <Link to="/profile#alarm">Notifications</Link>
+            </Badge>
+          </li>
           <li><Link to="/" onClick={() => { logout() }}>Log out</Link></li>
         </ul>
       )}
     </div>
   );
+}
+
+function useUnreadAlarms() {
+  const { user } = useContext(AuthContext);
+  const [count, setCount] = useState(0);
+
+  useEffect(() => {
+    if (user) {
+      fetch("/api/users/alarm/count") // endpoint returning only count
+        .then(res => res.json())
+        .then(data => setCount(data.count))
+        .catch(err => console.error("Error fetching alarm count:", err));
+    }
+  }, [user]);
+
+  return count;
 }

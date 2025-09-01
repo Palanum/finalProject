@@ -3,10 +3,10 @@
   top: 0;
   width: 100%;
   background-color: var(--yellow-yolk);
-  color: var(--text-yellow);
+  color: var(--text-yellow) !important;
   z-index: 1000;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  transition:transform 250ms ease-in-out;
+  transition: transform 250ms ease-in-out;
   height: var(--head-h);
 }
 
@@ -25,18 +25,21 @@
   align-items: center;
   background-color: var(--white);
   border: var(--border-1-solid) var(--text-yellow);
-  border-radius:999px ;
+  border-radius: 999px;
   position: absolute;
   left: 50%;
   top: 0;
   transform: translateX(-50%);
 }
-.logo-container{
+
+.logo-container {
   height: var(--head-h);
 }
+
 .App-logo {
-    width: 7rem;
+  width: 7rem;
 }
+
 .nav-links {
   list-style: none;
   display: flex;
@@ -44,6 +47,7 @@
   justify-content: space-between;
   gap: 20px;
 }
+
 .nav-group {
   display: flex;
   list-style: none;
@@ -51,12 +55,15 @@
   gap: .5rem;
   align-items: center;
 }
+
 .nav-links a,
 .nav-group a {
   text-decoration: none;
   font-weight: 500;
   padding: .3rem .6rem;
-  border-radius: 999px; /* optional, looks better */
+  border-radius: 999px;
+  /* optional, looks better */
+  color: var(--text-yellow) !important;
   transition: background-color 0.2s ease-in-out;
 }
 
@@ -64,7 +71,7 @@
 .nav-links a:hover,
 .nav-group a:hover,
 .profile-button:hover {
-  background-color: var(--yellow-yolk-darker)
+  background-color: var(--yellow-yolk-darker) !important
 }
 
 .nav-bar.visible {
@@ -95,7 +102,7 @@
   border-radius: 8px;
   list-style: none;
   padding: 0.5rem 0;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
   z-index: 999;
   min-width: 150px;
 }
