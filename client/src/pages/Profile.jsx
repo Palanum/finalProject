@@ -186,10 +186,10 @@ function MyRecipeSection() {
                                     <Button
                                         type="default"
                                         icon={<EditOutlined />}
-                                        disabled
+
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                            navigate(`/recipes/edit/${recipe.RecipeID}`);
+                                            navigate(`/recipes/${recipe.RecipeID}/edit`);
                                         }}
                                     >
                                         แก้ไข
@@ -205,7 +205,7 @@ function MyRecipeSection() {
                                         okText="ใช่"
                                         cancelText="ยกเลิก"
                                     >
-                                        <Button type="danger" disabled icon={<DeleteOutlined />} />
+                                        <Button type="danger" icon={<DeleteOutlined />} />
                                     </Popconfirm>
                                 </Space>,
                             ]}

@@ -107,7 +107,7 @@ function ProfileMenu({ count }) {
           <li><Link to="/profile#favorite">Favorite</Link></li>
           <li><Link to="/profile#myRecipe">My Recipes</Link></li>
           <li>
-            <Badge count={count} size="small">
+            <Badge count={count} size="small" className='full-width'>
               <Link to="/profile#alarm">Notifications</Link>
             </Badge>
           </li>

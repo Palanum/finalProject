@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useContext } from 'react';
+import { useNavigate } from 'react-router-dom';
 import "./Sharepage.css";
 import '../components/Button.css'
 import './Form.css'
 import { AuthContext } from "../context/AuthContext";
-import { PlusOutlined, LoadingOutlined, MinusCircleOutlined } from '@ant-design/icons';
+import { EditOutlined, PlusOutlined, LoadingOutlined, MinusCircleOutlined } from '@ant-design/icons';
 import {
   Button,
   Form,
@@ -19,14 +20,15 @@ import {
 } from 'antd';
 import axios from 'axios';
 
-function Sharepage() {
+function Sharepage({ initialData = null, mode = "create" }) {
   const { TextArea } = Input;
-  const { user } = useContext(AuthContext);
-  const [recipeImageUrl, setRecipeImageUrl] = useState();
-  const [recipeLoading, setRecipeLoading] = useState(false);
+  const [recipeImageUrl, setRecipeImageUrl] = useState(initialData?.ImageURL || '');
+  const [recipeFileList, setRecipeFileList] = useState(initialData?.ImageURL ? [{ url: initialData.ImageURL, uid: 'existing' }] : []);
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
-  const [recipeFileList, setRecipeFileList] = useState([]);
+  const { user } = useContext(AuthContext);
+  const [recipeLoading, setRecipeLoading] = useState(false);
+  const navigate = useNavigate();
 
   const handlePreview = (file) => {
     setPreviewImage(file.originFileObj ? URL.createObjectURL(file.originFileObj) : file.url);
@@ -62,7 +64,7 @@ function Sharepage() {
   };
 
   const uploadRecipeButton = (
-    <div>
+    <div className='upload-placeholder'>
       {recipeLoading ? <LoadingOutlined /> : <PlusOutlined />}
       <div style={{ marginTop: 8 }}>Upload</div>
     </div>
@@ -72,85 +74,83 @@ function Sharepage() {
     try {
       const formData = new FormData();
 
-      // Basic fields
+      // Basic recipe info
       formData.append('title', values.title);
       formData.append('time', values.time || '');
       formData.append('videoURL', values.video || '');
 
-      // Recipe main image
+      // Main recipe image (new upload only)
       if (recipeFileList[0]?.originFileObj) {
         formData.append('recipeImage', recipeFileList[0].originFileObj);
       }
 
-
       // Ingredients
       formData.append('ingredients', JSON.stringify(values.ingredientsList));
-      // Steps
-      const instructions = values.stepsList.map((step) => ({
+
+      // Instructions: include existing URLs + new files
+      const instructions = values.stepsList.map(step => ({
         text: step.stepDescription,
-        imageCount: step.stepImages?.length || 0 // <-- add this
+        stepImages: step.stepImages?.map(f =>
+          f.originFileObj ? { originFileObj: true } : { url: f.url }
+        ) || []
       }));
       formData.append('instructions', JSON.stringify(instructions));
 
-      // Flatten all step images under 'stepImages'
-      values.stepsList.forEach((step) => {
-        step.stepImages?.forEach((file) => {
-          formData.append('stepImages', file.originFileObj);
+      // Append all new step image files
+      values.stepsList.forEach(step => {
+        step.stepImages?.forEach(file => {
+          if (file.originFileObj) formData.append('stepImages', file.originFileObj);
         });
       });
 
+      // Tags / Categories
+      formData.append('tags', JSON.stringify(values.tags?.map(t => t.tag) || []));
 
+      // Determine URL & method
+      const url = mode === 'edit'
+        ? `/api/recipes/${initialData.RecipeID}/edit`
+        : '/api/recipes/addnew';
+      const method = mode === 'edit' ? 'PUT' : 'POST';
 
-      // Tags
-      formData.append('tags', JSON.stringify(values.tags?.map((t) => t.tag) || []));
-
-      // Send to backend
-      const res = await axios.post('/api/recipes/addnew', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }, withCredentials: true,
+      // Send request
+      const res = await axios({
+        url,
+        method,
+        data: formData,
+        headers: { 'Content-Type': 'multipart/form-data' },
+        withCredentials: true
       });
 
       if (res.data?.RecipeID) {
-        message.success('Recipe submitted successfully!');
-        console.log('RecipeID:', res.data.RecipeID);
+        message.success(mode === 'edit' ? 'Recipe updated!' : 'Recipe submitted!');
+        navigate(`/recipes/${res.data.RecipeID}`);
       } else {
         message.error('Submission failed!');
       }
     } catch (err) {
-      console.error('Submit error:', err);
-
-      // If server responded with something
-      if (err.response) {
-        console.error('Response data:', err.response.data);
-        console.error('Response status:', err.response.status);
-        console.error('Response headers:', err.response.headers);
-      } else if (err.request) {
-        // Request was made but no response received
-        console.error('Request made but no response:', err.request);
-      } else {
-        // Something happened setting up the request
-        console.error('Error setting up request:', err.message);
-      }
-
-      message.error('Submit failed! See console for details.');
+      console.error(err);
+      message.error('Submission failed! See console.');
     }
   };
 
 
 
+
+
   const formItemLayout = {
     labelCol: {
-      md: { span: 4 },
-      lg: { span: 4 }
+      md: { span: 6 },
+      lg: { span: 6 }
     },
     wrapperCol: {
-      md: { span: 14 },
-      lg: { span: 18 }
+      md: { span: 12 },
+      lg: { span: 16 }
     },
   };
   const formItemLayoutWithOutLabel = {
     wrapperCol: {
-      md: { span: 14, offset: 4 },
-      lg: { span: 18, offset: 4 }
+      md: { span: 12, offset: 6 },
+      lg: { span: 16, offset: 6 }
     },
   };
   const buttonItemLayout = {
@@ -167,9 +167,15 @@ function Sharepage() {
         className="recipe-form"
         layout="horizontal"
         initialValues={{
-          tags: [], // 0 tags by default
-          ingredientsList: [{ name: '', quantity: '', unit: 'กิโลกรัม' }], // 1 ingredient
-          stepsList: [{ stepDescription: '', stepImages: [] }], // 1 step
+          title: initialData?.Title || '',
+          time: initialData?.time || '',
+          tags: initialData?.categories?.map(tag => ({ tag })) || [],
+          ingredientsList: initialData?.ingredients || [{ name: '', quantity: '', unit: 'กิโลกรัม' }],
+          stepsList: initialData?.instructions?.map(inst => ({
+            stepDescription: inst.text,
+            stepImages: inst.images?.map((url, index) => ({ url, uid: `existing-${index}` })) || []
+          })) || [{ stepDescription: '', stepImages: [] }],
+          video: initialData?.videoURL || '',
         }}
         onFinish={onFinish}
       >
@@ -183,8 +189,8 @@ function Sharepage() {
         </Form.Item>
 
         {/* Recipe Image */}
-        <Row className='full-width'>
-          <Col span={18} offset={4} style={{ textAlign: 'center' }}>
+        <Row className='full-width just-center '>
+          <Col style={{ textAlign: 'center' }}>
             <Form.Item>
               <Upload
                 accept="image/png, image/jpeg"
@@ -238,140 +244,136 @@ function Sharepage() {
 
         {/* Time */}
         <Form.Item name="time" label="เวลาที่ใช้โดยประมาณ (นาที)" {...formItemLayout}>
-          <InputNumber className='input-text' />
-          <span>นาที</span>
+          <InputNumber className='input-text' addonAfter="นาที" style={{ width: '100%' }} />
         </Form.Item>
+
 
         {/* Ingredients */}
-        <Form.Item label="วัตถุดิบ" {...formItemLayout}>
-          <Form.List name="ingredientsList">
-            {(fields, { add, remove }) => (
-              <>
-                {fields.map(({ key, name, ...restField }) => (
-                  <div key={key} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'name']}
-                      rules={[{ required: true, message: 'โปรดใส่ชื่อวัตถุดิบ' }]}
-                      style={{ flex: 2, minWidth: 120 }}
-                    >
-                      <Input className='input-text' placeholder="ชื่อวัตถุดิบ" />
-                    </Form.Item>
+        <Form.List name="ingredientsList">
+          {(fields, { add, remove }) => (
+            <Form.Item label="วัตถุดิบ" {...formItemLayout}>
+              {fields.map(({ key, name, ...restField }) => (
+                <div key={key} style={{ display: 'flex', gap: 8, marginBottom: 8, alignItems: 'flex-start' }}>
+                  <Form.Item
+                    {...restField}
+                    name={[name, 'name']}
+                    rules={[{ required: true, message: 'โปรดใส่ชื่อวัตถุดิบ' }]}
+                    style={{ flex: 2, minWidth: 120 }}
+                  >
+                    <Input className='input-text' placeholder="ชื่อวัตถุดิบ" />
+                  </Form.Item>
 
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'quantity']}
-                      rules={[{ required: true, message: 'โปรดใส่จำนวน' }]}
-                      style={{ flex: 1, minWidth: 80 }}
-                    >
-                      <InputNumber className='input-text' placeholder="จำนวน" style={{ width: '100%' }} />
-                    </Form.Item>
+                  <Form.Item
+                    {...restField}
+                    name={[name, 'quantity']}
+                    rules={[{ required: true, message: 'โปรดใส่จำนวน' }]}
+                    style={{ flex: 1, minWidth: 80 }}
+                  >
+                    <InputNumber className='input-text' placeholder="จำนวน" style={{ width: '100%' }} />
+                  </Form.Item>
 
-                    <Form.Item
-                      {...restField}
-                      name={[name, 'unit']}
-                      rules={[{ required: true, message: 'โปรดเลือกหน่วยที่ใช้' }]}
-                      style={{ flex: 1, minWidth: 100 }}
-                    >
-                      <Select
-                        options={[
-                          { value: 'กิโลกรัม', label: 'กิโลกรัม' },
-                          { value: 'กรัม', label: 'กรัม' },
-                          { value: 'ลิตร', label: 'ลิตร' },
-                          { value: 'มิลลิลิตร', label: 'มิลลิลิตร' },
-                          { value: 'ช้อนชา', label: 'ช้อนชา' },
-                          { value: 'ช้อนโต๊ะ', label: 'ช้อนโต๊ะ' },
-                          { value: 'ถ้วย', label: 'ถ้วย' },
-                        ]}
-                        style={{ width: '100%' }}
-                      />
-                    </Form.Item>
+                  <Form.Item
+                    {...restField}
+                    name={[name, 'unit']}
+                    rules={[{ required: true, message: 'โปรดเลือกหน่วยที่ใช้' }]}
+                    style={{ flex: 1, minWidth: 100 }}
+                  >
+                    <Select
+                      options={[
+                        { value: 'กิโลกรัม', label: 'กิโลกรัม' },
+                        { value: 'กรัม', label: 'กรัม' },
+                        { value: 'ลิตร', label: 'ลิตร' },
+                        { value: 'มิลลิลิตร', label: 'มิลลิลิตร' },
+                        { value: 'ช้อนชา', label: 'ช้อนชา' },
+                        { value: 'ช้อนโต๊ะ', label: 'ช้อนโต๊ะ' },
+                        { value: 'ถ้วย', label: 'ถ้วย' },
+                      ]}
+                      style={{ width: '100%' }}
+                    />
+                  </Form.Item>
 
-                    {fields.length > 1 && (
-                      <MinusCircleOutlined
-                        style={{ marginTop: 8 }}
-                        onClick={() => remove(name)}
-                      />
-                    )}
-                  </div>
-                ))}
+                  {fields.length > 1 && (
+                    <MinusCircleOutlined
+                      style={{ marginTop: 8 }}
+                      onClick={() => remove(name)}
+                    />
+                  )}
+                </div>
+              ))}
 
 
-                <Form.Item {...buttonItemLayout}>
-                  <Button className='btn white-btn' type="default" onClick={() => add({ unit: 'กิโลกรัม' })} block icon={<PlusOutlined />}>
-                    เพิ่มวัตถุดิบ
-                  </Button>
-                </Form.Item>
-              </>
-            )}
-          </Form.List>
-        </Form.Item>
+              <Form.Item {...buttonItemLayout}>
+                <Button className='btn white-btn' type="default" onClick={() => add({ unit: 'กิโลกรัม' })} block icon={<PlusOutlined />}>
+                  เพิ่มวัตถุดิบ
+                </Button>
+              </Form.Item>
+            </Form.Item>
+          )}
+        </Form.List>
 
 
         {/* Cooking Steps */}
-        <Form.Item label="ขั้นตอนการปรุงอาหาร" {...formItemLayout}>
-          <Form.List name="stepsList">
-            {(fields, { add, remove }) => (
-              <>
-                {fields.map(({ key, name, ...restField }) => (
-                  <div
-                    key={key}
-                    style={{
-                      border: '1px solid #ddd',
-                      padding: '10px',
-                      marginBottom: '12px',
-                      borderRadius: '6px',
-                    }}
-                  >
-                    <div className="flex align-start mb-2">
-                      <Form.Item
-                        {...restField}
-                        name={[name, 'stepDescription']}
-                        rules={[{ required: true, message: 'โปรดใส่รายละเอียดขั้นตอนการปรุงอาหาร' }]}
-                        style={{ flex: 1, marginBottom: 0 }}
-                      >
-                        <TextArea
-                          className='input-text full-width'
-                          placeholder="รายละเอียดขั้นตอนการปรุงอาหาร"
-                          autoSize={{ minRows: 3, maxRows: 3 }}
-                        />
-                      </Form.Item>
-                      {fields.length > 1 && <MinusCircleOutlined onClick={() => remove(name)} />}
-                    </div>
-
+        <Form.List name="stepsList">
+          {(fields, { add, remove }) => (
+            <Form.Item label="ขั้นตอนการปรุงอาหาร" {...formItemLayout}>
+              {fields.map(({ key, name, ...restField }) => (
+                <div
+                  key={key}
+                  style={{
+                    border: '1px solid #ddd',
+                    padding: '10px',
+                    marginBottom: '12px',
+                    borderRadius: '6px',
+                  }}
+                >
+                  <div className="flex align-start mb-2">
                     <Form.Item
                       {...restField}
-                      name={[name, 'stepImages']}
-                      valuePropName="fileList"
-                      getValueFromEvent={normFile}
+                      name={[name, 'stepDescription']}
+                      rules={[{ required: true, message: 'โปรดใส่รายละเอียดขั้นตอนการปรุงอาหาร' }]}
+                      style={{ flex: 1, marginBottom: 0 }}
                     >
-                      <Upload
-                        accept="image/png, image/jpeg, image/jpg"
-                        listType="picture-card"
-                        multiple
-                        action={null}
-                        beforeUpload={() => false}
-                        onPreview={handlePreview}
-
-                      >
-                        <div>
-                          <PlusOutlined />
-                          <div style={{ fontSize: 12 }}>Add Images</div>
-                        </div>
-                      </Upload>
+                      <TextArea
+                        className='input-text full-width'
+                        placeholder="รายละเอียดขั้นตอนการปรุงอาหาร"
+                        autoSize={{ minRows: 3, maxRows: 3 }}
+                      />
                     </Form.Item>
+                    {fields.length > 1 && <MinusCircleOutlined onClick={() => remove(name)} />}
                   </div>
-                ))}
-                <Form.Item {...buttonItemLayout}>
-                  <Button className='btn white-btn' type="default" onClick={() => add()} block icon={<PlusOutlined />}>
-                    เพิ่มขั้นตอนการปรุงอาหาร
-                  </Button>
-                </Form.Item>
-              </>
-            )}
-          </Form.List>
 
-        </Form.Item>
+                  <Form.Item
+                    {...restField}
+                    name={[name, 'stepImages']}
+                    valuePropName="fileList"
+                    getValueFromEvent={normFile}
+                  >
+                    <Upload
+                      accept="image/png, image/jpeg, image/jpg"
+                      listType="picture-card"
+                      multiple
+                      action={null}
+                      beforeUpload={() => false}
+                      onPreview={handlePreview}
+
+                    >
+                      <div className='upload-placeholder'>
+                        <PlusOutlined />
+                        <div style={{ fontSize: 12 }}>Add Images</div>
+                      </div>
+                    </Upload>
+                  </Form.Item>
+                </div>
+              ))}
+              <Form.Item {...buttonItemLayout}>
+                <Button className='btn white-btn' type="default" onClick={() => add()} block icon={<PlusOutlined />}>
+                  เพิ่มขั้นตอนการปรุงอาหาร
+                </Button>
+              </Form.Item>
+            </Form.Item>
+          )}
+        </Form.List>
+
         <Modal
           open={previewVisible}
           footer={null}
@@ -402,10 +404,17 @@ function Sharepage() {
 
         {/* Submit */}
         <Form.Item {...formItemLayoutWithOutLabel}>
-          <Button className='btn white-btn' type="default" htmlType="submit" iconPosition="end" icon={<PlusOutlined />}>
-            แชร์สูตรของฉัน
+          <Button
+            className='btn white-btn'
+            type="default"
+            htmlType="submit"
+            iconPosition="end"
+            icon={mode === 'edit' ? <EditOutlined /> : <PlusOutlined />}
+          >
+            {mode === 'edit' ? 'อัปเดตสูตรของฉัน' : 'แชร์สูตรของฉัน'}
           </Button>
         </Form.Item>
+
       </Form>
     </div>
   );

@@ -1,42 +1,41 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
-const axios = require('axios');
+
+const { Recipe, User, Category } = require('../models');
+const { Op } = require('sequelize');
+const sequelize = require('../db'); // ✅ correct
 
 router.get('/home', async (req, res) => {
   try {
-    const [recipes] = await pool.query(`
-      SELECT r.RecipeID, r.Title, r.ImageURL, r.time, r.UserID,
-             u.username,
-             GROUP_CONCAT(c.Name) AS categories
-      FROM recipes r
-      LEFT JOIN users u ON r.UserID = u.id
-      LEFT JOIN recipe_category rc ON r.RecipeID = rc.RecipeID
-      LEFT JOIN categories c ON rc.CategoryID = c.CategoryID
-      GROUP BY r.RecipeID
-      ORDER BY r.RecipeID DESC
-      LIMIT 10
-    `);
+    const recipes = await Recipe.findAll({
+      include: [
+        { model: User, attributes: ['id', 'username'] },
+        { model: Category, through: { attributes: [] }, attributes: ['Name'] } // many-to-many
+      ],
+      order: [['RecipeID', 'DESC']],
+      limit: 10
+    });
 
-    // Format response
     const formattedRecipes = recipes.map(r => ({
       RecipeID: r.RecipeID,
       Title: r.Title,
       ImageURL: r.ImageURL,
       time: r.time,
-      categories: r.categories ? r.categories.split(',') : [],
+      categories: r.Categories.map(c => c.Name),
       user: {
-        id: r.UserID,
-        username: r.username
+        id: r.User.id,
+        username: r.User.username
       }
     }));
-    // console.log('Formatted recipes:', formattedRecipes);
+
+    // console.log('Recipes fetched:', formattedRecipes);
     res.json(formattedRecipes);
   } catch (err) {
     console.error('Error fetching recipes:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 

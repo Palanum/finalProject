@@ -8,6 +8,10 @@ const { libreTranslateThaiToEng } = require('../config/lebretranslate');
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
+const { Recipe, User, Ingredient, DataIngredient, Instruction, InstructionImg, Category, RecipeCategory, Comment, Favorite, Like } = require('../models');
+const sequelize = require('../db'); // ✅ correct
+const { Op } = require('sequelize');
+
 const USDA_API_KEY = process.env.USDA_API_KEY;
 const ingredientData = {
   "ข้าวเหนียว": { eng: "sticky rice", synonyms: ["glutinous rice", "sweet rice", "mochi rice"] },
@@ -270,22 +274,19 @@ async function test(text) {
 // test('มะระ');
 
 
+// Wrap Cloudinary upload in async
 cloudinary.uploader.upload_stream_async = function (buffer, options = {}) {
+  const streamifier = require('streamifier');
   return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(options, (error, result) => {
-      if (error) reject(error);
+    const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
+      if (err) reject(err);
       else resolve(result);
     });
-    stream.end(buffer);
+    streamifier.createReadStream(buffer).pipe(stream);
   });
 };
 
-function isAuthenticated(req, res, next) {
-  if (req.session && req.session.user) {
-    return next();
-  }
-  return res.status(401).json({ error: 'Unauthorized: Please log in' });
-}
+
 async function findOrCreateCategory(conn, categoryName) {
   if (!categoryName) return null;
 
@@ -296,421 +297,518 @@ async function findOrCreateCategory(conn, categoryName) {
   return result.insertId;
 }
 
-router.post(
-  '/addnew',
-  isAuthenticated,
-  upload.fields([
-    { name: 'recipeImage', maxCount: 1 },
-    { name: 'stepImages', maxCount: 50 },
-  ]),
-  async (req, res) => {
-    const conn = await pool.getConnection();
-    try {
-      const UserID = req.session.user?.id;
-      if (!UserID) return res.status(401).json({ error: 'Unauthorized: Please log in' });
+router.post('/addnew', upload.fields([
+  { name: 'recipeImage', maxCount: 1 },
+  { name: 'stepImages', maxCount: 50 },
+]), async (req, res) => {
+  const UserID = req.session.user?.id;
+  if (!UserID) return res.status(401).json({ error: 'Unauthorized: Please log in' });
 
-      // Parse request body safely
-      const {
-        title,
-        videoURL,
-        ingredients,
-        instructions,
-        time,
-        tags, // categories/tags
-      } = req.body;
+  const { title, videoURL, ingredients, instructions, time, tags } = req.body;
 
-      const ingArr = ingredients ? JSON.parse(ingredients) : [];
-      const stepsArr = instructions ? JSON.parse(instructions) : [];
-      const tagsArr = tags ? JSON.parse(tags) : [];
+  const ingArr = ingredients ? JSON.parse(ingredients) : [];
+  const stepsArr = instructions ? JSON.parse(instructions) : [];
+  const tagsArr = tags ? JSON.parse(tags) : [];
+  const allStepImages = req.files?.stepImages || [];
 
-      await conn.beginTransaction();
+  const t = await sequelize.transaction();
 
-      // 1️⃣ Insert recipe WITHOUT CategoryID
-      const [recipeResult] = await conn.query(
-        'INSERT INTO recipes (UserID, Title, videoURL,time) VALUES (?, ?, ?,?)',
-        [UserID, title, videoURL || null, time || null]
+  try {
+    // 1️⃣ Create recipe
+    const recipe = await Recipe.create({
+      UserID,
+      Title: title,
+      videoURL: videoURL || null,
+      time: time || null
+    }, { transaction: t });
+
+    const RecipeID = recipe.RecipeID;
+
+    // 2️⃣ Upload main image
+    if (req.files?.recipeImage?.[0]) {
+      const uploadedRecipe = await cloudinary.uploader.upload_stream_async(
+        req.files.recipeImage[0].buffer,
+        { folder: `image_project/recipe_${RecipeID}` }
       );
-      const RecipeID = recipeResult.insertId;
+      recipe.ImageURL = uploadedRecipe.secure_url;
+      await recipe.save({ transaction: t });
+    }
 
-      // 2️⃣ Upload main recipe image
-      if (req.files?.recipeImage?.[0]) {
-        const uploadedRecipe = await cloudinary.uploader.upload_stream_async(
-          req.files.recipeImage[0].buffer,
-          { folder: `image_project/recipe_${RecipeID}` }
-        );
-        await conn.query(
-          'UPDATE recipes SET ImageURL = ? WHERE RecipeID = ?',
-          [uploadedRecipe.secure_url, RecipeID]
-        );
-      }
+    // 3️⃣ Tags / Categories
+    for (const tagName of tagsArr) {
+      if (!tagName) continue;
+      let category = await Category.findOne({ where: { Name: tagName }, transaction: t });
+      if (!category) category = await Category.create({ Name: tagName }, { transaction: t });
+      await RecipeCategory.findOrCreate({
+        where: { RecipeID, CategoryID: category.CategoryID },
+        transaction: t
+      });
+    }
 
+    // 4️⃣ Ingredients
+    for (const ing of ingArr) {
+      if (!ing.name) continue;
+      let dataIng = await DataIngredient.findOne({ where: { name_th: ing.name }, transaction: t });
+      if (!dataIng) dataIng = await DataIngredient.create({ name_th: ing.name }, { transaction: t });
 
-      // 3️⃣ Insert tags/categories into many-to-many table
-      for (const tagName of tagsArr) {
-        if (!tagName) continue;
+      await Ingredient.create({
+        RecipeID,
+        RawIngredientID: dataIng.RawIngredientID,
+        Quantity: ing.quantity || 0,
+        Unit: ing.unit || ''
+      }, { transaction: t });
+    }
 
-        // Find existing category or create a new one
-        const CategoryID = await findOrCreateCategory(conn, tagName);
+    // 5️⃣ Steps & step images
+    let stepImageIndex = 0;
+    for (const step of stepsArr) {
+      const instruction = await Instruction.create({
+        RecipeID,
+        details: step.text || ''
+      }, { transaction: t });
 
-        if (!CategoryID) continue;
-
-        // Insert into junction table
-        await conn.query(
-          'INSERT INTO recipe_category (RecipeID, CategoryID) VALUES (?, ?) ON DUPLICATE KEY UPDATE RecipeID = RecipeID',
-          [RecipeID, CategoryID]
-        );
-      }
-
-      // 4️⃣ Insert ingredients
-      for (const ing of ingArr) {
-        if (!ing.name) continue;
-        const ingredientObj = await findOrCreateIngredient(conn, ing.name);
-        await conn.query(
-          'INSERT INTO ingredients (RecipeID, RawIngredientID, Quantity, Unit) VALUES (?, ?, ?, ?)',
-          [RecipeID, ingredientObj.RawIngredientID, ing.quantity || '', ing.unit || '']
-        );
-      }
-
-      // 5️⃣ Insert steps & step images
-      const allStepImages = req.files?.stepImages || [];
-      let stepImageIndex = 0;
-
-      for (const step of stepsArr) {
-        const [insRes] = await conn.query(
-          'INSERT INTO instruction (RecipeID, details) VALUES (?, ?)',
-          [RecipeID, step.text || '']
-        );
-        const instructionId = insRes.insertId;
-
-        const count = step.imageCount || 0;
-        for (let i = 0; i < count; i++) {
-          const file = allStepImages[stepImageIndex];
-          if (!file) continue;
-
+      const stepImages = step.stepImages || [];
+      for (const file of stepImages) {
+        if (file.originFileObj) {
           const uploadedStepImg = await cloudinary.uploader.upload_stream_async(
-            file.buffer,
+            allStepImages[stepImageIndex].buffer,
             { folder: `image_project/recipe_${RecipeID}/steps` }
           );
-          await conn.query(
-            'INSERT INTO instruction_img (instructionID, imageURL) VALUES (?, ?)',
-            [instructionId, uploadedStepImg.secure_url]
-          );
+          await InstructionImg.create({
+            instructionID: instruction.instructionID,
+            imageURL: uploadedStepImg.secure_url
+          }, { transaction: t });
           stepImageIndex++;
         }
-        // console.log(`Inserted step ${instructionId} with ${count} images`);
       }
-
-      await conn.commit();
-      res.json({ msg: 'Recipe added successfully!', RecipeID });
-    } catch (error) {
-      await conn.rollback();
-      console.error('Error adding recipe:', error.stack);
-      res.status(500).json({ error: 'Internal server error' });
-    } finally {
-      conn.release();
     }
+
+    await t.commit();
+    res.json({ msg: 'Recipe added successfully!', RecipeID });
+  } catch (err) {
+    await t.rollback();
+    console.error('Error adding recipe:', err.stack);
+    res.status(500).json({ error: 'Internal server error' });
   }
-);
+});
 
 // Get all recipes with tags
-router.get("/", async (req, res) => {
+router.get('/', async (req, res) => {
   try {
-    const [rows] = await pool.query(
-      `SELECT r.RecipeID, r.Title, r.time, r.ImageURL, u.username, t.Name
-       FROM recipes r
-       JOIN users u ON r.UserID = u.id
-       LEFT JOIN recipe_category rt ON r.RecipeID = rt.RecipeID
-       LEFT JOIN categories t ON rt.CategoryID = t.CategoryID
-       ORDER BY r.RecipeID DESC`
-    );
-
-    // Group tags under each recipe
-    const recipes = {};
-    rows.forEach(row => {
-      if (!recipes[row.RecipeID]) {
-        recipes[row.RecipeID] = {
-          RecipeID: row.RecipeID,
-          Title: row.Title,
-          time: row.time,
-          ImageURL: row.ImageURL,
-          username: row.username,
-          categories: []
-        };
-      }
-      if (row.Name) {
-        recipes[row.RecipeID].categories.push(row.Name);
-      }
+    const recipes = await Recipe.findAll({
+      order: [['RecipeID', 'DESC']],
+      include: [
+        { model: User, attributes: ['username'] },
+        { model: Category, through: { attributes: [] } } // through hides junction table
+      ]
     });
 
-    res.json(Object.values(recipes));
+    const result = recipes.map(r => ({
+      RecipeID: r.RecipeID,
+      Title: r.Title,
+      time: r.time,
+      ImageURL: r.ImageURL,
+      username: r.User.username,
+      categories: r.Categories.map(c => c.Name)
+    }));
+
+    res.json(result);
   } catch (err) {
-    console.error("Error fetching recipes:", err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error('Error fetching recipes:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 // Search with optional filters
-router.get("/search", async (req, res) => {
-  const { q, category } = req.query;
-  let sql = `
-    SELECT r.RecipeID, r.Title, r.ImageURL, r.time, u.username, c.Name
-    FROM recipes r
-    JOIN users u ON r.UserID = u.id
-    LEFT JOIN recipe_category rc ON r.RecipeID = rc.RecipeID
-    LEFT JOIN categories c ON rc.CategoryID = c.CategoryID
-    WHERE 1=1
-  `;
-  const params = [];
-
-  // search by keyword
-  if (q) {
-    sql += " AND r.Title LIKE ?";
-    params.push(`%${q}%`);
-  }
-
-  // filter by category
-  if (category) {
-    sql += " AND c.Name = ?";
-    params.push(category);
-  }
-
-  sql += " ORDER BY r.RecipeID DESC";
+router.get('/search', async (req, res) => {
+  const { q } = req.query; // single input
 
   try {
-    const [rows] = await pool.query(sql, params);
-
-    // ✅ group categories per recipe
-    const recipes = {};
-    rows.forEach(row => {
-      if (!recipes[row.RecipeID]) {
-        recipes[row.RecipeID] = {
-          RecipeID: row.RecipeID,
-          Title: row.Title,
-          ImageURL: row.ImageURL,
-          time: row.time,
-          username: row.username,
-          categories: []
-        };
-      }
-      if (row.Name) {
-        recipes[row.RecipeID].categories.push(row.Name);
-      }
+    const recipes = await Recipe.findAll({
+      include: [
+        {
+          model: User,
+          attributes: ['id', 'username'],
+        },
+        {
+          model: Category,
+          attributes: ['Name'],
+          through: { attributes: [] },
+        }
+      ],
+      where: q
+        ? {
+          [Op.or]: [
+            { Title: { [Op.like]: `%${q}%` } },
+            { '$User.username$': { [Op.like]: `%${q}%` } },
+            { '$Categories.Name$': { [Op.like]: `%${q}%` } },
+          ]
+        }
+        : undefined,
+      order: [['RecipeID', 'DESC']],
+      distinct: true, // avoids duplicate rows due to many-to-many
     });
 
-    res.json(Object.values(recipes));
+    const formattedRecipes = recipes.map(r => ({
+      RecipeID: r.RecipeID,
+      Title: r.Title,
+      ImageURL: r.ImageURL,
+      time: r.time,
+      username: r.User.username,
+      categories: r.Categories.map(c => c.Name)
+    }));
+
+    res.json(formattedRecipes);
   } catch (err) {
-    console.error("Search error:", err);
-    res.status(500).json({ error: "Internal server error" });
+    console.error('Search error:', err);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
+
+
 const unitToGram = {
   'กิโลกรัม': 1000,
   'กรัม': 1,
-  'ลิตร': 1000,    // assume density = 1 g/ml
+  'ลิตร': 1000,
   'มิลลิลิตร': 1,
   'ช้อนชา': 5,
   'ช้อนโต๊ะ': 15,
   'ถ้วย': 240
 };
+
 router.get('/:id', async (req, res) => {
   try {
     const userId = req.session.user?.id || 0;
     const recipeId = req.params.id;
 
-    const [rows] = await pool.query(
-      `SELECT 
-         r.RecipeID, r.Title, r.time, r.ImageURL, r.videoURL,
-         u.id AS UserID, u.username,
-         CASE WHEN fav.UserID IS NULL THEN 0 ELSE 1 END AS isFavorite,
-         CASE WHEN l.UserID IS NULL THEN 0 ELSE 1 END AS isLike,
-         t.Name AS CategoryName,
-         i.instructionID, i.details,
-         ii.imageURL AS InstructionImage,
-         ing.IngredientID, ing.Quantity, ing.Unit,
-         ing_data.name_th AS IngredientName,
-         ing_data.calories, ing_data.protein, ing_data.fat, ing_data.carbs
-       FROM recipes r
-       JOIN users u ON r.UserID = u.id
-       LEFT JOIN recipe_category rt ON r.RecipeID = rt.RecipeID
-       LEFT JOIN favorites fav ON r.RecipeID = fav.RecipeID AND fav.UserID = ?
-       LEFT JOIN likes l ON r.RecipeID = l.RecipeID AND l.UserID = ?
-       LEFT JOIN categories t ON rt.CategoryID = t.CategoryID
-       LEFT JOIN instruction i ON r.RecipeID = i.RecipeID
-       LEFT JOIN instruction_img ii ON i.instructionID = ii.instructionID
-       LEFT JOIN ingredients ing ON r.RecipeID = ing.RecipeID
-       LEFT JOIN data_ingredients ing_data ON ing.RawIngredientID = ing_data.RawIngredientID
-       WHERE r.RecipeID = ?`,
-      [userId, userId, recipeId]
-    );
+    const recipe = await Recipe.findByPk(recipeId, {
+      include: [
+        { model: User, attributes: ['id', 'username'] },
+        { model: Category, through: { attributes: [] } },
+        {
+          model: Instruction,
+          include: [{ model: InstructionImg, attributes: ['imageURL'] }]
+        },
+        {
+          model: Ingredient,
+          include: [{ model: DataIngredient }]
+        },
+        {
+          model: Comment,
+          include: [{ model: User, attributes: ['id', 'username'] }],
+          // remove order from here
+        },
+        {
+          model: Favorite,
+          where: { UserID: userId },
+          required: false
+        },
+        {
+          model: Like,
+          where: { UserID: userId },
+          required: false
+        }
+      ],
+      order: [[Comment, 'CreatedAt', 'ASC']] // <-- order comments here
+    });
 
-    if (rows.length === 0) {
-      return res.status(404).json({ error: "Recipe not found" });
-    }
-    const [commentRows] = await pool.query(
-      `SELECT c.CommentID, c.Content, c.type, c.CreatedAt,
-              c.ParentCommentID,
-              u.id AS UserID, u.username
-       FROM comments c
-       LEFT JOIN users u ON c.UserID = u.id
-       WHERE c.RecipeID = ?
-       ORDER BY c.CreatedAt ASC`,
-      [recipeId]
-    );
-    const recipe = {
-      RecipeID: rows[0].RecipeID,
-      Title: rows[0].Title,
-      time: rows[0].time,
-      ImageURL: rows[0].ImageURL,
-      videoURL: rows[0].videoURL || '',
-      isFavorite: rows[0].isFavorite === 1,
-      isLike: rows[0].isLike === 1,
-      user: {
-        id: rows[0].UserID,
-        username: rows[0].username
-      },
-      categories: [],
-      instructions: [],
-      ingredients: [],
-      nutrients: { calories: 0, protein: 0, fat: 0, carbs: 0 },
-      comments: []
-    };
-    // Build a nested comment structure
+
+    if (!recipe) return res.status(404).json({ error: "Recipe not found" });
+
+    // Build nested comments
     const commentsMap = new Map();
     const commentsTree = [];
-    commentRows.forEach(c => {
+    recipe.Comments.forEach(c => {
       const comment = {
         id: c.CommentID,
         content: c.Content,
         type: c.type,
         createdAt: c.CreatedAt,
-        user: {
-          id: c.UserID,
-          username: c.username
-        },
+        user: { id: c.User.id, username: c.User.username },
         replies: []
       };
-
       commentsMap.set(c.CommentID, comment);
-
       if (c.ParentCommentID) {
-        // it's a reply
         const parent = commentsMap.get(c.ParentCommentID);
         if (parent) parent.replies.push(comment);
-      } else {
-        // top-level comment
-        commentsTree.push(comment);
-      }
+      } else commentsTree.push(comment);
     });
 
-    recipe.comments = commentsTree;
-
-
-    const categoriesSet = new Set();
-    const instructionsMap = new Map();
-    const ingredientsSet = new Set();
-    const nutrientTotals = { calories: 0, protein: 0, fat: 0, carbs: 0 };
-
-    rows.forEach(r => {
-      // Categories
-      if (r.CategoryName && !categoriesSet.has(r.CategoryName)) {
-        categoriesSet.add(r.CategoryName);
-        recipe.categories.push(r.CategoryName);
-      }
-
-      // Instructions
-      if (r.instructionID) {
-        if (!instructionsMap.has(r.instructionID)) {
-          instructionsMap.set(r.instructionID, {
-            id: r.instructionID,
-            text: r.details,
-            images: new Set()
-          });
-        }
-        if (r.InstructionImage) {
-          instructionsMap.get(r.instructionID).images.add(r.InstructionImage);
-        }
-      }
-
-      // Ingredients
-      if (r.IngredientID && !ingredientsSet.has(r.IngredientID)) {
-        ingredientsSet.add(r.IngredientID);
-        recipe.ingredients.push({
-          id: r.IngredientID,
-          name: r.IngredientName,
-          quantity: r.Quantity,
-          unit: r.Unit
-        });
-
-        // Calculate nutrients (assumes r.Quantity is in grams/ml)
-        const multiplier = r.Quantity / 100;
-        nutrientTotals.calories += r.calories * multiplier;
-        nutrientTotals.protein += r.protein * multiplier;
-        nutrientTotals.fat += r.fat * multiplier;
-        nutrientTotals.carbs += r.carbs * multiplier;
-      }
-    });
-
-    // Finalize instructions
-    recipe.instructions = Array.from(instructionsMap.values()).map(instr => ({
-      id: instr.id,
-      text: instr.text,
-      images: Array.from(instr.images)
+    // Build instructions with images
+    const instructions = recipe.Instructions.map(i => ({
+      id: i.instructionID,
+      text: i.details,
+      images: i.InstructionImgs.map(img => img.imageURL)
     }));
 
-    // Round nutrient totals
-    recipe.nutrients = {
-      calories: Math.round(nutrientTotals.calories),
-      protein: Math.round(nutrientTotals.protein * 10) / 10,
-      fat: Math.round(nutrientTotals.fat * 10) / 10,
-      carbs: Math.round(nutrientTotals.carbs * 10) / 10
-    };
+    // Build ingredients & calculate nutrients
+    const ingredients = [];
+    const nutrients = { calories: 0, protein: 0, fat: 0, carbs: 0 };
+    recipe.Ingredients.forEach(ing => {
+      const data = ing.DataIngredient;
+      const factor = unitToGram[ing.Unit] || 1; // fallback 1 if unit not mapped
+      const amountInGrams = ing.Quantity * factor;
+      const qtyMultiplier = amountInGrams / 100;
 
-    res.json(recipe);
+      nutrients.calories += (data.calories || 0) * qtyMultiplier;
+      nutrients.protein += (data.protein || 0) * qtyMultiplier;
+      nutrients.fat += (data.fat || 0) * qtyMultiplier;
+      nutrients.carbs += (data.carbs || 0) * qtyMultiplier;
+
+      ingredients.push({
+        id: ing.IngredientID,
+        name: data.name_th,
+        quantity: ing.Quantity,
+        unit: ing.Unit
+      });
+    });
+
+    res.json({
+      RecipeID: recipe.RecipeID,
+      Title: recipe.Title,
+      time: recipe.time,
+      ImageURL: recipe.ImageURL,
+      videoURL: recipe.videoURL,
+      isFavorite: recipe.Favorites.length > 0,
+      isLike: recipe.Likes.length > 0,
+      user: { id: recipe.User.id, username: recipe.User.username },
+      categories: recipe.Categories.map(c => c.Name),
+      instructions,
+      ingredients,
+      nutrients: {
+        calories: Math.round(nutrients.calories),
+        protein: Math.round(nutrients.protein * 10) / 10,
+        fat: Math.round(nutrients.fat * 10) / 10,
+        carbs: Math.round(nutrients.carbs * 10) / 10
+      },
+      comments: commentsTree
+    });
+
   } catch (err) {
     console.error("Error fetching recipe:", err);
     res.status(500).json({ error: "Internal server error" });
   }
 });
 
-// POST /api/recipes/:id/comments
+router.put('/:id/edit', upload.fields([
+  { name: 'recipeImage', maxCount: 1 },
+  { name: 'stepImages', maxCount: 50 }
+]), async (req, res) => {
+  const RecipeID = req.params.id;
+  const UserID = req.session.user?.id;
+
+  if (!UserID) return res.status(401).json({ error: 'Unauthorized' });
+
+  const { title, videoURL, time, ingredients, instructions, tags } = req.body;
+  const ingArr = ingredients ? JSON.parse(ingredients) : [];
+  const stepsArr = instructions ? JSON.parse(instructions) : [];
+  const tagsArr = tags ? JSON.parse(tags) : [];
+
+  const t = await sequelize.transaction();
+
+  try {
+    // 1️⃣ Update Recipe basic info
+    const recipe = await Recipe.findByPk(RecipeID, { transaction: t });
+    if (!recipe) throw new Error('Recipe not found');
+
+    recipe.Title = title;
+    recipe.videoURL = videoURL || null;
+    recipe.time = time || null;
+    await recipe.save({ transaction: t });
+
+    // 2️⃣ Update main image if new one uploaded
+    if (req.files?.recipeImage?.[0]) {
+      if (recipe.ImageURL) {
+        const public_id = recipe.ImageURL.match(/\/([^\/]+)\.[a-z]+$/)[1];
+        await cloudinary.uploader.destroy(public_id);
+      }
+      const uploadedRecipe = await cloudinary.uploader.upload_stream_async(
+        req.files.recipeImage[0].buffer,
+        { folder: `image_project/recipe_${RecipeID}` }
+      );
+      recipe.ImageURL = uploadedRecipe.secure_url;
+      await recipe.save({ transaction: t });
+    }
+
+    // 3️⃣ Tags / Categories
+    const existingCategories = await RecipeCategory.findAll({
+      where: { RecipeID },
+      include: [{ model: Category }],
+      transaction: t
+    });
+    const existingNames = existingCategories.map(rc => rc.Category?.Name || '');
+
+    // Remove categories no longer in frontend
+    for (const rc of existingCategories) {
+      if (!tagsArr.includes(rc.Category?.Name)) await rc.destroy({ transaction: t });
+    }
+
+    // Add new categories
+    for (const tagName of tagsArr) {
+      if (!tagName) continue;
+      if (!existingNames.includes(tagName)) {
+        let category = await Category.findOne({ where: { Name: tagName }, transaction: t });
+        if (!category) category = await Category.create({ Name: tagName }, { transaction: t });
+        await RecipeCategory.findOrCreate({
+          where: { RecipeID, CategoryID: category.CategoryID },
+          transaction: t
+        });
+      }
+    }
+
+    // 4️⃣ Ingredients
+    const existingIngredients = await Ingredient.findAll({
+      where: { RecipeID },
+      include: [DataIngredient],
+      transaction: t
+    });
+
+    // Remove old ingredients not in frontend
+    for (const oldIng of existingIngredients) {
+      if (!ingArr.find(i => i.name === oldIng.DataIngredient?.name_th)) {
+        await oldIng.destroy({ transaction: t });
+      }
+    }
+
+    // Add/update ingredients
+    for (const ing of ingArr) {
+      if (!ing.name) continue;
+      let dataIng = await DataIngredient.findOne({ where: { name_th: ing.name }, transaction: t });
+      if (!dataIng) dataIng = await DataIngredient.create({ name_th: ing.name }, { transaction: t });
+
+      let existing = await Ingredient.findOne({
+        where: { RecipeID, RawIngredientID: dataIng.RawIngredientID },
+        transaction: t
+      });
+      if (existing) {
+        existing.Quantity = ing.quantity || 0;
+        existing.Unit = ing.unit || '';
+        await existing.save({ transaction: t });
+      } else {
+        await Ingredient.create({
+          RecipeID,
+          RawIngredientID: dataIng.RawIngredientID,
+          Quantity: ing.quantity || 0,
+          Unit: ing.unit || ''
+        }, { transaction: t });
+      }
+    }
+
+    // 5️⃣ Steps & Step Images
+    const existingSteps = await Instruction.findAll({
+      where: { RecipeID },
+      include: [{ model: InstructionImg }],
+      order: [['instructionID', 'ASC']],
+      transaction: t
+    });
+
+    for (let i = 0; i < stepsArr.length; i++) {
+      const step = stepsArr[i];
+      let instruction = existingSteps[i];
+
+      if (!instruction) {
+        instruction = await Instruction.create({ RecipeID, details: step.text || '' }, { transaction: t });
+        instruction.InstructionImgs = [];
+      } else {
+        instruction.details = step.text || '';
+        await instruction.save({ transaction: t });
+        instruction.InstructionImgs = await InstructionImg.findAll({
+          where: { instructionID: instruction.instructionID },
+          transaction: t
+        });
+      }
+
+      const stepImagesFromFrontend = step.stepImages || []; // { url?, originFileObj? }
+      const oldImages = instruction.InstructionImgs || [];
+
+      // Delete images removed in frontend
+      for (const oldImg of oldImages) {
+        const stillExists = stepImagesFromFrontend.find(f => f.url === oldImg.imageURL);
+        if (!stillExists) {
+          const public_id = oldImg.imageURL.match(/\/([^\/]+)\.[a-z]+$/)[1];
+          await cloudinary.uploader.destroy(public_id);
+          await oldImg.destroy({ transaction: t });
+        }
+      }
+
+      // Upload new files
+      const newFiles = stepImagesFromFrontend.filter(f => f.originFileObj);
+      for (const file of newFiles) {
+        const matchedFile = req.files?.stepImages?.find(f => f.originalname === file.originFileObj.name);
+        if (!matchedFile) continue;
+
+        const uploaded = await cloudinary.uploader.upload_stream_async(
+          matchedFile.buffer,
+          { folder: `image_project/recipe_${RecipeID}/steps` }
+        );
+
+        await InstructionImg.create({
+          instructionID: instruction.instructionID,
+          imageURL: uploaded.secure_url
+        }, { transaction: t });
+      }
+    }
+
+    // Delete old steps not in frontend
+    for (let i = stepsArr.length; i < existingSteps.length; i++) {
+      const oldStep = existingSteps[i];
+      for (const img of oldStep.InstructionImgs) {
+        const public_id = img.imageURL.match(/\/([^\/]+)\.[a-z]+$/)[1];
+        await cloudinary.uploader.destroy(public_id);
+        await img.destroy({ transaction: t });
+      }
+      await oldStep.destroy({ transaction: t });
+    }
+
+    await t.commit();
+    res.json({ msg: 'Recipe updated successfully!', RecipeID });
+  } catch (err) {
+    await t.rollback();
+    console.error('Error editing recipe:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+
+
+
 router.post('/:id/comments', async (req, res) => {
   const userId = req.session.user?.id;
   const recipeId = req.params.id;
   const { content, parentId } = req.body;
 
-  if (!userId) {
-    return res.status(401).json({ error: "Unauthorized" });
-  }
-
-  if (!content || !content.trim()) {
-    return res.status(400).json({ error: "Comment cannot be empty" });
-  }
+  if (!userId) return res.status(401).json({ error: "Unauthorized" });
+  if (!content || !content.trim()) return res.status(400).json({ error: "Comment cannot be empty" });
 
   try {
-    const [result] = await pool.query(
-      "INSERT INTO comments (RecipeID, UserID, ParentCommentID, Content, type) VALUES (?, ?, ?, ?, 'normal')",
-      [recipeId, userId, parentId || null, content]
-    );
+    // Verify the recipe exists
+    const recipe = await Recipe.findByPk(recipeId);
+    if (!recipe) return res.status(404).json({ error: "Recipe not found" });
 
-    // Return the created comment
-    const [rows] = await pool.query(
-      `SELECT c.CommentID, c.Content, c.type, c.CreatedAt,
-              c.ParentCommentID,
-              u.id AS UserID, u.username
-       FROM comments c
-       LEFT JOIN users u ON c.UserID = u.id
-       WHERE c.CommentID = ?`,
-      [result.insertId]
-    );
+    // Create the comment
+    const comment = await Comment.create({
+      RecipeID: recipeId,
+      UserID: userId,
+      ParentCommentID: parentId || null,
+      Content: content,
+      type: 'normal'
+    });
+
+    // Fetch the comment with user info
+    const createdComment = await Comment.findByPk(comment.CommentID, {
+      include: [{ model: User, attributes: ['id', 'username'] }]
+    });
 
     res.status(201).json({
       comment: {
-        id: rows[0].CommentID,
-        content: rows[0].Content,
-        type: rows[0].type,
-        createdAt: rows[0].CreatedAt,
-        user: { id: rows[0].UserID, username: rows[0].username },
+        id: createdComment.CommentID,
+        content: createdComment.Content,
+        type: createdComment.type,
+        createdAt: createdComment.CreatedAt,
+        user: {
+          id: createdComment.User.id,
+          username: createdComment.User.username
+        },
         replies: []
       }
     });

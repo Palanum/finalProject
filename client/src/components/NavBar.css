@@ -18,7 +18,7 @@
 }
 
 .nav-logo {
-  height: 100%;
+  height: var(--head-h);
   width: 11rem;
   display: flex;
   justify-content: center;

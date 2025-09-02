@@ -18,8 +18,6 @@ export default function Recipespage() {
     const [recipe, setRecipe] = useState(null);
     const [loading, setLoading] = useState(true);
     const [activeKey, setActiveKey] = useState("1");
-    const [isFavorite, setIsFavorite] = useState(false);
-    const [isLike, setIsLike] = useState(false);
     const [newComment, setNewComment] = useState("");
     const [replyToCommentId, setReplyToCommentId] = useState(null);
     // Refs for jump targets

@@ -11,6 +11,7 @@ import Profile from "./pages/Profile";
 import RecipesAndSearchPage from './pages/Search';
 import Sharepage from './pages/Sharepage';
 import Recipespage from './pages/Recipespage';
+import EditRecipePage from './pages/EditRecipePage';
 import { AuthContext } from './context/AuthContext';
 import ProtectedRoute from './components/Protectroute';
 function App() {
@@ -43,6 +44,14 @@ function App() {
         <Route path="/recipes" element={<RecipesAndSearchPage />} />
         <Route path="/search" element={<RecipesAndSearchPage />} />
         <Route path="/recipes/:id" element={<Recipespage />} />
+        <Route
+          path="/recipes/:id/edit"
+          element={
+            <ProtectedRoute messageText="You must be logged in to edit recipes">
+              <EditRecipePage />
+            </ProtectedRoute>
+          }
+        />
         <Route path="*" element={<p>404 Not Found</p>} />
       </Routes>
       <Footer />
