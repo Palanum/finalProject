@@ -237,6 +237,10 @@ textarea:focus {
   display: flex;
 }
 
+.flex-wrap {
+  flex-wrap: wrap;
+}
+
 .flex-1 {
   flex: 1;
 }
@@ -329,6 +333,10 @@ textarea:focus {
   color: var(--head-text);
 }
 
+.main-text {
+  color: var(--text-yellow);
+}
+
 .green-text {
   color: var(--text-green);
 }
@@ -351,6 +359,32 @@ textarea:focus {
 
 .text-just {
   text-align: justify;
+}
+
+.card-tags-container {
+  max-height: 60px;
+  overflow: hidden;
+}
+
+.card-cover {
+  height: 180px;
+  object-fit: cover;
+}
+
+.card-tag {
+  padding: .2rem .7rem;
+  border-radius: 999px;
+  margin: 0;
+}
+
+.green-tag {
+  background-color: #A4D281;
+  color: var(--text-yellow);
+}
+
+.yellow-tag {
+  background-color: #FFE082;
+  color: var(--text-yellow);
 }
 
 :root {

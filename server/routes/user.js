@@ -3,8 +3,6 @@ const bcrypt = require('bcrypt');
 
 const router = express.Router();
 
-const pool = require('../db');
-
 const { User, Recipe, Favorite, Like, Comment } = require('../models'); // models only
 const sequelize = require('../db'); // Sequelize instance
 const { Op } = require('sequelize');

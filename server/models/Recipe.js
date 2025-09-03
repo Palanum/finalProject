@@ -28,6 +28,14 @@ const Recipe = sequelize.define('Recipe', {
         type: DataTypes.INTEGER,
         allowNull: true,
     },
+    CreatedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    UpdatedAt: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    }
 }, {
     tableName: 'recipes',
     timestamps: false,

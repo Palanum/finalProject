@@ -31,38 +31,44 @@ function Home() {
           {recipes.map((recipe) => (
             <Col
               key={recipe.RecipeID}
+              xs={12}  // 2 per row on extra-small screens
+              sm={12}  // 2 per row on small screens
               md={8}    // 3 per row on medium+
               lg={6}    // 4 columns on large desktop
 
             >
-              <Card
-                hoverable
-                cover={
-                  <img
-                    alt={recipe.Title}
-                    src={recipe.ImageURL || "/placeholder.png"}
-                    style={{ height: 180, objectFit: "cover" }}
+              <div className="full-height flex">
+
+                <Card
+                  hoverable
+                  className="flex flex-column flex-1"
+                  cover={
+                    <img
+                      alt={recipe.Title}
+                      src={recipe.ImageURL || "/placeholder.png"}
+                      className='card-cover'
+                    />
+                  }
+                  onClick={() =>
+                    (window.location.href = `/recipes/${recipe.RecipeID}`)
+                  }
+                >
+                  <Meta
+                    title={<span className="main-text">{recipe.Title}</span>}
+                    description={`เวลา: ${recipe.time || "N/A"} นาที`}
                   />
-                }
-                onClick={() =>
-                  (window.location.href = `/recipes/${recipe.RecipeID}`)
-                }
-              >
-                <Meta
-                  title={recipe.Title}
-                  description={`เวลา: ${recipe.time || "N/A"} นาที`}
-                />
-                <div style={{ marginTop: 8 }}>
-                  {recipe.categories.map((cat, i) => (
-                    <Tag key={i} bordered={false} className='green-tag'>
-                      {cat}
-                    </Tag>
-                  ))}
-                </div>
-                <div style={{ marginTop: 8, fontSize: "0.85em", color: "#555" }}>
-                  👨‍🍳 {recipe.user?.username}
-                </div>
-              </Card>
+                  <div className='card-tags-container flex flex-wrap gap-1 mt-2'>
+                    {recipe.categories.map((cat, i) => (
+                      <Tag key={i} bordered={false} className='card-tag green-tag'>
+                        {cat}
+                      </Tag>
+                    ))}
+                  </div>
+                  <div className='sub-text mt-2'>
+                    <strong className='bold-text'>ชื่อผู้โพส :</strong> {recipe.user?.username}
+                  </div>
+                </Card>
+              </div>
             </Col>
           ))}
         </Row>

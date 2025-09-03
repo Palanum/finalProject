@@ -319,7 +319,9 @@ router.post('/addnew', upload.fields([
       UserID,
       Title: title,
       videoURL: videoURL || null,
-      time: time || null
+      time: time || null,
+      CreatedAt: new Date(),
+      UpdatedAt: new Date()
     }, { transaction: t });
 
     const RecipeID = recipe.RecipeID;
@@ -421,32 +423,60 @@ router.get('/', async (req, res) => {
 
 // Search with optional filters
 router.get('/search', async (req, res) => {
-  const { q } = req.query; // single input
+  const { q, minTime, maxTime, includeIngredient } = req.query;
 
   try {
+    const where = {};
+
+    // Text search
+    if (q) {
+      const orConditions = [
+        { Title: { [Op.like]: `%${q}%` } },
+        { '$User.username$': { [Op.like]: `%${q}%` } },
+        { '$Categories.Name$': { [Op.like]: `%${q}%` } },
+      ];
+
+      // If includeIngredient is true, also search in ingredients
+      if (includeIngredient === 'true') {
+        orConditions.push(
+          { '$Ingredients.DataIngredient.name_eng$': { [Op.like]: `%${q}%` } },
+          { '$Ingredients.DataIngredient.name_th$': { [Op.like]: `%${q}%` } }
+        );
+      }
+
+
+      where[Op.or] = orConditions;
+    }
+
+    // Time filter
+    if (minTime && maxTime) {
+      where.time = { [Op.between]: [Number(minTime), Number(maxTime)] };
+    } else if (minTime) {
+      where.time = { [Op.gte]: Number(minTime) };
+    } else if (maxTime) {
+      where.time = { [Op.lte]: Number(maxTime) };
+    }
+
+    const includeModels = [
+      { model: User, attributes: ['id', 'username'] },
+      { model: Category, attributes: ['Name'], through: { attributes: [] } },
+    ];
+
+    // Include Ingredients if includeIngredient = true
+    if (includeIngredient === 'true') {
+      includeModels.push({
+        model: Ingredient,
+        include: [
+          { model: DataIngredient, attributes: ['name_eng', 'name_th'] }
+        ]
+      });
+    }
+
     const recipes = await Recipe.findAll({
-      include: [
-        {
-          model: User,
-          attributes: ['id', 'username'],
-        },
-        {
-          model: Category,
-          attributes: ['Name'],
-          through: { attributes: [] },
-        }
-      ],
-      where: q
-        ? {
-          [Op.or]: [
-            { Title: { [Op.like]: `%${q}%` } },
-            { '$User.username$': { [Op.like]: `%${q}%` } },
-            { '$Categories.Name$': { [Op.like]: `%${q}%` } },
-          ]
-        }
-        : undefined,
+      include: includeModels,
+      where,
       order: [['RecipeID', 'DESC']],
-      distinct: true, // avoids duplicate rows due to many-to-many
+      distinct: true,
     });
 
     const formattedRecipes = recipes.map(r => ({
@@ -454,7 +484,7 @@ router.get('/search', async (req, res) => {
       Title: r.Title,
       ImageURL: r.ImageURL,
       time: r.time,
-      username: r.User.username,
+      username: r.User?.username,
       categories: r.Categories.map(c => c.Name)
     }));
 
@@ -464,6 +494,7 @@ router.get('/search', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 const unitToGram = {
@@ -599,7 +630,7 @@ router.put('/:id/edit', upload.fields([
 
   if (!UserID) return res.status(401).json({ error: 'Unauthorized' });
 
-  const { title, videoURL, time, ingredients, instructions, tags } = req.body;
+  const { title, videoURL, time, ingredients, instructions, tags, removeRecipeImage } = req.body;
   const ingArr = ingredients ? JSON.parse(ingredients) : [];
   const stepsArr = instructions ? JSON.parse(instructions) : [];
   const tagsArr = tags ? JSON.parse(tags) : [];
@@ -614,10 +645,19 @@ router.put('/:id/edit', upload.fields([
     recipe.Title = title;
     recipe.videoURL = videoURL || null;
     recipe.time = time || null;
+    recipe.UpdatedAt = new Date();
     await recipe.save({ transaction: t });
 
-    // 2️⃣ Update main image if new one uploaded
-    if (req.files?.recipeImage?.[0]) {
+    // 2️⃣ Handle main recipe image explicitly
+    if (removeRecipeImage === 'true') {
+      if (recipe.ImageURL) {
+        const public_id = recipe.ImageURL.match(/\/([^\/]+)\.[a-z]+$/)[1];
+        await cloudinary.uploader.destroy(public_id);
+        recipe.ImageURL = null;
+        await recipe.save({ transaction: t });
+      }
+    } else if (req.files?.recipeImage?.[0]) {
+      // Upload new image
       if (recipe.ImageURL) {
         const public_id = recipe.ImageURL.match(/\/([^\/]+)\.[a-z]+$/)[1];
         await cloudinary.uploader.destroy(public_id);
@@ -629,21 +669,18 @@ router.put('/:id/edit', upload.fields([
       recipe.ImageURL = uploadedRecipe.secure_url;
       await recipe.save({ transaction: t });
     }
+    // else → keep old image
 
-    // 3️⃣ Tags / Categories
+    // 3️⃣ Tags / Categories (same as before)
     const existingCategories = await RecipeCategory.findAll({
       where: { RecipeID },
       include: [{ model: Category }],
       transaction: t
     });
     const existingNames = existingCategories.map(rc => rc.Category?.Name || '');
-
-    // Remove categories no longer in frontend
     for (const rc of existingCategories) {
       if (!tagsArr.includes(rc.Category?.Name)) await rc.destroy({ transaction: t });
     }
-
-    // Add new categories
     for (const tagName of tagsArr) {
       if (!tagName) continue;
       if (!existingNames.includes(tagName)) {
@@ -656,21 +693,17 @@ router.put('/:id/edit', upload.fields([
       }
     }
 
-    // 4️⃣ Ingredients
+    // 4️⃣ Ingredients (same as before)
     const existingIngredients = await Ingredient.findAll({
       where: { RecipeID },
       include: [DataIngredient],
       transaction: t
     });
-
-    // Remove old ingredients not in frontend
     for (const oldIng of existingIngredients) {
       if (!ingArr.find(i => i.name === oldIng.DataIngredient?.name_th)) {
         await oldIng.destroy({ transaction: t });
       }
     }
-
-    // Add/update ingredients
     for (const ing of ingArr) {
       if (!ing.name) continue;
       let dataIng = await DataIngredient.findOne({ where: { name_th: ing.name }, transaction: t });
@@ -718,12 +751,12 @@ router.put('/:id/edit', upload.fields([
         });
       }
 
-      const stepImagesFromFrontend = step.stepImages || []; // { url?, originFileObj? }
+      const stepImagesFromFrontend = step.stepImages || [];
       const oldImages = instruction.InstructionImgs || [];
 
       // Delete images removed in frontend
       for (const oldImg of oldImages) {
-        const stillExists = stepImagesFromFrontend.find(f => f.url === oldImg.imageURL);
+        const stillExists = stepImagesFromFrontend.find(f => f.url === oldImg.imageURL && f.isOld);
         if (!stillExists) {
           const public_id = oldImg.imageURL.match(/\/([^\/]+)\.[a-z]+$/)[1];
           await cloudinary.uploader.destroy(public_id);
@@ -732,7 +765,7 @@ router.put('/:id/edit', upload.fields([
       }
 
       // Upload new files
-      const newFiles = stepImagesFromFrontend.filter(f => f.originFileObj);
+      const newFiles = stepImagesFromFrontend.filter(f => !f.isOld && f.originFileObj);
       for (const file of newFiles) {
         const matchedFile = req.files?.stepImages?.find(f => f.originalname === file.originFileObj.name);
         if (!matchedFile) continue;
@@ -768,6 +801,7 @@ router.put('/:id/edit', upload.fields([
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 

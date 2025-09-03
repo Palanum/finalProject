@@ -38,11 +38,7 @@
   z-index: 2;
 }
 
-.green-tag {
-  background-color: #A4D281;
-  color: var(--text-yellow);
-  border-radius: 999px;
-}
+
 
 .share-container {
   background-color: var(--bg-yellow);

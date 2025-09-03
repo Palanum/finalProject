@@ -23,7 +23,12 @@ import axios from 'axios';
 function Sharepage({ initialData = null, mode = "create" }) {
   const { TextArea } = Input;
   const [recipeImageUrl, setRecipeImageUrl] = useState(initialData?.ImageURL || '');
-  const [recipeFileList, setRecipeFileList] = useState(initialData?.ImageURL ? [{ url: initialData.ImageURL, uid: 'existing' }] : []);
+  const [recipeFileList, setRecipeFileList] = useState(
+    initialData?.ImageURL
+      ? [{ url: initialData.ImageURL, uid: 'existing', isOld: true }]
+      : []
+  );
+
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState('');
   const { user } = useContext(AuthContext);
@@ -51,17 +56,17 @@ function Sharepage({ initialData = null, mode = "create" }) {
   };
 
   const handleRecipeChange = ({ fileList }) => {
-    const lastFile = fileList.slice(-1).map((file, index) => ({
+    const updated = fileList.map(file => ({
       ...file,
-      uid: file.uid || `recipe-${Date.now()}-${index}`
+      isOld: file.isOld || false, // preserve old flag
+      uid: file.uid || `recipe-${Date.now()}`
     }));
-    setRecipeFileList(lastFile);
+    setRecipeFileList(updated);
 
-    const file = lastFile[0]?.originFileObj;
-    if (file) {
-      getBase64(file, url => setRecipeImageUrl(url));
-    }
+    const file = updated[0]?.originFileObj;
+    if (file) getBase64(file, url => setRecipeImageUrl(url));
   };
+
 
   const uploadRecipeButton = (
     <div className='upload-placeholder'>
@@ -74,64 +79,103 @@ function Sharepage({ initialData = null, mode = "create" }) {
     try {
       const formData = new FormData();
 
-      // Basic recipe info
+      // --- Basic recipe info ---
       formData.append('title', values.title);
       formData.append('time', values.time || '');
       formData.append('videoURL', values.video || '');
 
-      // Main recipe image (new upload only)
-      if (recipeFileList[0]?.originFileObj) {
+      // --- Recipe Image Handling ---
+      if (mode === 'edit') {
+        if (!recipeFileList.length) {
+          formData.append('removeRecipeImage', true);
+          console.log("Recipe Image: removed");
+        } else if (recipeFileList[0]?.originFileObj) {
+          formData.append('recipeImage', recipeFileList[0].originFileObj);
+          console.log("Recipe Image: new upload", recipeFileList[0].originFileObj);
+        } else {
+          console.log("Recipe Image: kept old", recipeFileList[0].url);
+        }
+      } else if (recipeFileList[0]?.originFileObj) {
         formData.append('recipeImage', recipeFileList[0].originFileObj);
+        console.log("Recipe Image: new upload", recipeFileList[0].originFileObj);
       }
 
-      // Ingredients
-      formData.append('ingredients', JSON.stringify(values.ingredientsList));
+      // --- Ingredients ---
+      formData.append('ingredients', JSON.stringify(values.ingredientsList || []));
 
-      // Instructions: include existing URLs + new files
-      const instructions = values.stepsList.map(step => ({
-        text: step.stepDescription,
-        stepImages: step.stepImages?.map(f =>
-          f.originFileObj ? { originFileObj: true } : { url: f.url }
-        ) || []
-      }));
+      // --- Instructions / Step Images ---
+      const instructions = values.stepsList.map((step, stepIndex) => {
+        const initialStep = initialData?.instructions?.[stepIndex];
+        const stepImages = step.stepImages?.map(f => {
+          if (f.originFileObj) return { new: true, tempName: f.name };
+          if (f.url) return { url: f.url, isOld: initialStep?.images?.includes(f.url) };
+          return null;
+        }).filter(Boolean) || [];
+
+        return {
+          text: step.stepDescription,
+          stepImages
+        };
+      });
+
       formData.append('instructions', JSON.stringify(instructions));
 
-      // Append all new step image files
+      // --- Append new step image files ---
       values.stepsList.forEach(step => {
         step.stepImages?.forEach(file => {
           if (file.originFileObj) formData.append('stepImages', file.originFileObj);
         });
       });
 
-      // Tags / Categories
+      // --- Tags / Categories ---
       formData.append('tags', JSON.stringify(values.tags?.map(t => t.tag) || []));
 
-      // Determine URL & method
-      const url = mode === 'edit'
-        ? `/api/recipes/${initialData.RecipeID}/edit`
-        : '/api/recipes/addnew';
-      const method = mode === 'edit' ? 'PUT' : 'POST';
+      console.log("=== FormData prepared for backend ===");
+      for (let [key, value] of formData.entries()) console.log(key, value);
+      console.log("===================================");
 
-      // Send request
-      const res = await axios({
-        url,
-        method,
-        data: formData,
-        headers: { 'Content-Type': 'multipart/form-data' },
-        withCredentials: true
+      // --- Confirmation ---
+      Modal.confirm({
+        title: mode === 'edit' ? 'ยืนยันการอัปเดตสูตรอาหาร?' : 'ยืนยันการแชร์สูตรอาหาร?',
+        content: 'คุณแน่ใจหรือไม่ว่าต้องการดำเนินการต่อ',
+        okText: 'ยืนยัน',
+        cancelText: 'ยกเลิก',
+        onOk: async () => {
+          const url = mode === 'edit'
+            ? `/api/recipes/${initialData.RecipeID}/edit`
+            : '/api/recipes/addnew';
+          const method = mode === 'edit' ? 'PUT' : 'POST';
+
+          try {
+            const res = await axios({
+              url,
+              method,
+              data: formData,
+              headers: { 'Content-Type': 'multipart/form-data' },
+              withCredentials: true
+            });
+
+            if (res.data?.RecipeID) {
+              message.success(mode === 'edit' ? 'Recipe updated!' : 'Recipe submitted!');
+              navigate(`/recipes/${res.data.RecipeID}`);
+            } else {
+              message.error('Submission failed!');
+            }
+          } catch (err) {
+            console.error(err);
+            message.error('Submission failed! See console.');
+          }
+        }
       });
 
-      if (res.data?.RecipeID) {
-        message.success(mode === 'edit' ? 'Recipe updated!' : 'Recipe submitted!');
-        navigate(`/recipes/${res.data.RecipeID}`);
-      } else {
-        message.error('Submission failed!');
-      }
     } catch (err) {
       console.error(err);
       message.error('Submission failed! See console.');
     }
   };
+
+
+
 
 
 
@@ -173,7 +217,11 @@ function Sharepage({ initialData = null, mode = "create" }) {
           ingredientsList: initialData?.ingredients || [{ name: '', quantity: '', unit: 'กิโลกรัม' }],
           stepsList: initialData?.instructions?.map(inst => ({
             stepDescription: inst.text,
-            stepImages: inst.images?.map((url, index) => ({ url, uid: `existing-${index}` })) || []
+            stepImages: inst.images?.map((url, index) => ({
+              url,
+              uid: `existing-${index}`,
+              isOld: true
+            })) || []
           })) || [{ stepDescription: '', stepImages: [] }],
           video: initialData?.videoURL || '',
         }}
@@ -196,15 +244,33 @@ function Sharepage({ initialData = null, mode = "create" }) {
                 accept="image/png, image/jpeg"
                 listType="picture-card"
                 maxCount={1}
-                action={null}
+                action={null} // prevent auto-upload
                 beforeUpload={beforeUpload}
-                onChange={handleRecipeChange}
                 onPreview={handlePreview}
-                fileList={recipeFileList} // fully controlled
+                fileList={recipeFileList.map(file => ({
+                  ...file,
+                  isOld: file.isOld || !!file.url, // mark old images
+                }))}
+                onChange={({ fileList }) => {
+                  const updatedList = fileList.map(f => ({
+                    uid: f.uid,
+                    name: f.name,
+                    status: f.status,
+                    url: f.url,
+                    originFileObj: f.originFileObj || null,
+                    isOld: f.isOld || !!f.url,
+                  }));
+                  setRecipeFileList(updatedList);
+
+                  // Update preview URL if new upload
+                  const file = updatedList[0]?.originFileObj;
+                  if (file) getBase64(file, url => setRecipeImageUrl(url));
+                }}
               >
                 {recipeFileList.length >= 1 ? null : uploadRecipeButton}
               </Upload>
             </Form.Item>
+
 
             <Modal open={previewVisible} footer={null} onCancel={() => setPreviewVisible(false)}>
               <img alt="Preview" style={{ width: '100%' }} src={previewImage} />
@@ -316,7 +382,7 @@ function Sharepage({ initialData = null, mode = "create" }) {
         <Form.List name="stepsList">
           {(fields, { add, remove }) => (
             <Form.Item label="ขั้นตอนการปรุงอาหาร" {...formItemLayout}>
-              {fields.map(({ key, name, ...restField }) => (
+              {fields.map(({ key, name, ...restField }, stepIndex) => (
                 <div
                   key={key}
                   style={{
@@ -326,6 +392,7 @@ function Sharepage({ initialData = null, mode = "create" }) {
                     borderRadius: '6px',
                   }}
                 >
+                  {/* Step description */}
                   <div className="flex align-start mb-2">
                     <Form.Item
                       {...restField}
@@ -342,6 +409,7 @@ function Sharepage({ initialData = null, mode = "create" }) {
                     {fields.length > 1 && <MinusCircleOutlined onClick={() => remove(name)} />}
                   </div>
 
+                  {/* Step images */}
                   <Form.Item
                     {...restField}
                     name={[name, 'stepImages']}
@@ -353,9 +421,25 @@ function Sharepage({ initialData = null, mode = "create" }) {
                       listType="picture-card"
                       multiple
                       action={null}
-                      beforeUpload={() => false}
+                      beforeUpload={(file) => false} // prevent auto-upload
                       onPreview={handlePreview}
-
+                      fileList={restField.value?.map(file => ({
+                        ...file,
+                        // ensure old images keep isOld
+                        isOld: file.isOld || !!file.url,
+                      })) || []}
+                      onChange={({ fileList }) => {
+                        // Track new vs old images
+                        const updatedList = fileList.map(f => ({
+                          uid: f.uid,
+                          name: f.name,
+                          status: f.status,
+                          url: f.url,
+                          originFileObj: f.originFileObj || null,
+                          isOld: f.isOld || !!f.url
+                        }));
+                        restField.onChange(updatedList);
+                      }}
                     >
                       <div className='upload-placeholder'>
                         <PlusOutlined />
@@ -373,6 +457,7 @@ function Sharepage({ initialData = null, mode = "create" }) {
             </Form.Item>
           )}
         </Form.List>
+
 
         <Modal
           open={previewVisible}
