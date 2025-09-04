@@ -420,26 +420,15 @@ function Sharepage({ initialData = null, mode = "create" }) {
                       accept="image/png, image/jpeg, image/jpg"
                       listType="picture-card"
                       multiple
-                      action={null}
-                      beforeUpload={(file) => false} // prevent auto-upload
+                      beforeUpload={() => false} // prevent auto-upload
                       onPreview={handlePreview}
-                      fileList={restField.value?.map(file => ({
-                        ...file,
-                        // ensure old images keep isOld
-                        isOld: file.isOld || !!file.url,
-                      })) || []}
-                      onChange={({ fileList }) => {
-                        // Track new vs old images
-                        const updatedList = fileList.map(f => ({
-                          uid: f.uid,
-                          name: f.name,
-                          status: f.status,
-                          url: f.url,
-                          originFileObj: f.originFileObj || null,
-                          isOld: f.isOld || !!f.url
-                        }));
-                        restField.onChange(updatedList);
+                      itemRender={(originNode, file) => {
+                        // mark old files
+                        if (file.url) file.isOld = true;
+                        return originNode;
                       }}
+                      fileList={recipeFileList}
+                      onChange={handleRecipeChange}
                     >
                       <div className='upload-placeholder'>
                         <PlusOutlined />

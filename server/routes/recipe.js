@@ -8,7 +8,21 @@ const { libreTranslateThaiToEng } = require('../config/lebretranslate');
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-const { Recipe, User, Ingredient, DataIngredient, Instruction, InstructionImg, Category, RecipeCategory, Comment, Favorite, Like } = require('../models');
+const {
+  Category,
+  Comment,
+  DataIngredient,
+  Favorite,
+  Ingredient,
+  Instruction,
+  InstructionImg,
+  Like,
+  Recipe,
+  RecipeCategory,
+  RecipeView,
+  User
+} = require('../models');
+
 const sequelize = require('../db'); // ✅ correct
 const { Op } = require('sequelize');
 
@@ -194,13 +208,13 @@ async function searchUsdaByName(engName, strict = true) {
 
 
 
-async function findOrCreateIngredient(conn, thaiName) {
+async function findOrCreateIngredient(thaiName, transaction) {
   // 1️⃣ Check DB first
-  const [found] = await conn.query(
-    `SELECT * FROM data_ingredients WHERE name_th = ?`,
-    [thaiName]
-  );
-  if (found.length > 0) return found[0];
+  let dataIng = await DataIngredient.findOne({
+    where: { name_th: thaiName },
+    transaction,
+  });
+  if (dataIng) return dataIng;
 
   // 2️⃣ Map Thai → English using fuzzy matching
   const engName = await mapIngredient(thaiName);
@@ -208,7 +222,6 @@ async function findOrCreateIngredient(conn, thaiName) {
 
   // 3️⃣ Search USDA strictly first
   let foods = await searchUsdaByName(engName, true);
-
   let rawFoods = filterRawFoods(foods);
 
   // 4️⃣ Relax search if no raw food found
@@ -217,6 +230,7 @@ async function findOrCreateIngredient(conn, thaiName) {
     foods = await searchUsdaByName(engName, false);
     rawFoods = filterRawFoods(foods);
   }
+
   console.log('USDA raw foods found:');
   rawFoods.forEach(f => {
     console.log({
@@ -231,7 +245,6 @@ async function findOrCreateIngredient(conn, thaiName) {
     });
   });
 
-
   if (!rawFoods.length) throw new Error('No reliable raw USDA food found');
 
   // 5️⃣ Take first raw food
@@ -239,39 +252,22 @@ async function findOrCreateIngredient(conn, thaiName) {
   const nutrition = extractNutrition(chosenFood);
   console.log(`Chosen food: ${chosenFood.description} (FDC ID: ${chosenFood.fdcId})`);
 
-  // 6️⃣ Insert into DB
-  const [insert] = await conn.query(
-    `INSERT INTO data_ingredients 
-      (name_eng, name_th, calories, protein, fat, carbs, external_id, source, is_verified)
-     VALUES (?, ?, ?, ?, ?, ?, ?, 'USDA', 0)`,
-    [engName, thaiName, nutrition.calories, nutrition.protein, nutrition.fat, nutrition.carbs, chosenFood.fdcId]
-  );
-
-  return {
-    RawIngredientID: insert.insertId,
-    name_th: thaiName,
+  // 6️⃣ Insert into DB with Sequelize
+  dataIng = await DataIngredient.create({
     name_eng: engName,
-    ...nutrition
-  };
+    name_th: thaiName,
+    calories: nutrition.calories,
+    protein: nutrition.protein,
+    fat: nutrition.fat,
+    carbs: nutrition.carbs,
+    external_id: chosenFood.fdcId,
+    source: 'USDA',
+    is_verified: false,
+  }, { transaction });
+
+  return dataIng;
 }
 
-
-async function test(text) {
-  try {
-    const thaiName = text;
-
-    // Use pool to query
-    const ingredientData = await findOrCreateIngredient(pool, thaiName);
-
-    console.log("Ingredient data:", ingredientData);
-  } catch (err) {
-    console.error("Error:", err.message);
-  } finally {
-    pool.end(); // close pool when done
-  }
-}
-
-// test('มะระ');
 
 
 // Wrap Cloudinary upload in async
@@ -287,15 +283,15 @@ cloudinary.uploader.upload_stream_async = function (buffer, options = {}) {
 };
 
 
-async function findOrCreateCategory(conn, categoryName) {
-  if (!categoryName) return null;
+// async function findOrCreateCategory(conn, categoryName) {
+//   if (!categoryName) return null;
 
-  const [rows] = await conn.query('SELECT CategoryID FROM categories WHERE Name = ?', [categoryName]);
-  if (rows.length > 0) return rows[0].CategoryID;
+//   const [rows] = await conn.query('SELECT CategoryID FROM categories WHERE Name = ?', [categoryName]);
+//   if (rows.length > 0) return rows[0].CategoryID;
 
-  const [result] = await conn.query('INSERT INTO categories (Name) VALUES (?)', [categoryName]);
-  return result.insertId;
-}
+//   const [result] = await conn.query('INSERT INTO categories (Name) VALUES (?)', [categoryName]);
+//   return result.insertId;
+// }
 
 router.post('/addnew', upload.fields([
   { name: 'recipeImage', maxCount: 1 },
@@ -350,8 +346,9 @@ router.post('/addnew', upload.fields([
     // 4️⃣ Ingredients
     for (const ing of ingArr) {
       if (!ing.name) continue;
-      let dataIng = await DataIngredient.findOne({ where: { name_th: ing.name }, transaction: t });
-      if (!dataIng) dataIng = await DataIngredient.create({ name_th: ing.name }, { transaction: t });
+
+      // ✅ Use Sequelize helper (no raw conn)
+      const dataIng = await findOrCreateIngredient(ing.name, t);
 
       await Ingredient.create({
         RecipeID,
@@ -361,29 +358,67 @@ router.post('/addnew', upload.fields([
       }, { transaction: t });
     }
 
-    // 5️⃣ Steps & step images
-    let stepImageIndex = 0;
-    for (const step of stepsArr) {
-      const instruction = await Instruction.create({
-        RecipeID,
-        details: step.text || ''
-      }, { transaction: t });
 
-      const stepImages = step.stepImages || [];
-      for (const file of stepImages) {
-        if (file.originFileObj) {
-          const uploadedStepImg = await cloudinary.uploader.upload_stream_async(
-            allStepImages[stepImageIndex].buffer,
-            { folder: `image_project/recipe_${RecipeID}/steps` }
-          );
-          await InstructionImg.create({
-            instructionID: instruction.instructionID,
-            imageURL: uploadedStepImg.secure_url
-          }, { transaction: t });
-          stepImageIndex++;
-        }
+    // 5️⃣ Steps & Step Images
+    const existingSteps = await Instruction.findAll({
+      where: { RecipeID },
+      include: [{ model: InstructionImg }],
+      order: [['instructionID', 'ASC']],
+      transaction: t
+    });
+    // console.dir(instructions);
+    for (let i = 0; i < stepsArr.length; i++) {
+      const step = stepsArr[i];
+      let instruction = existingSteps[i];
+
+      instruction = await Instruction.create({ RecipeID, details: step.text || '' }, { transaction: t });
+      instruction.InstructionImgs = [];
+
+      const stepImagesFromFrontend = step.stepImages || [];
+
+      // Upload new files
+      const newFiles = stepImagesFromFrontend.filter(f => f.new && f.tempName);
+      for (const file of newFiles) {
+        const matchedFile = req.files?.stepImages?.find(f => f.originalname === file.tempName);
+        if (!matchedFile) continue;
+
+        const uploaded = await cloudinary.uploader.upload_stream_async(
+          matchedFile.buffer,
+          { folder: `image_project/recipe_${RecipeID}/steps` }
+        );
+
+        await InstructionImg.create({
+          instructionID: instruction.instructionID,
+          imageURL: uploaded.secure_url
+        }, { transaction: t });
       }
+
     }
+
+
+    // // 5️⃣ Steps & step images
+    // let stepImageIndex = 0;
+    // for (const step of stepsArr) {
+    //   const instruction = await Instruction.create({
+    //     RecipeID,
+    //     details: step.text || ''
+    //   }, { transaction: t });
+
+    //   const stepImages = step.stepImages || [];
+    //   for (const file of stepImages) {
+    //     if (file.originFileObj) {
+    //       const uploadedStepImg = await cloudinary.uploader.upload_stream_async(
+    //         allStepImages[stepImageIndex].buffer,
+    //         { folder: `image_project/recipe_${RecipeID}/steps` }
+    //       );
+    //       await InstructionImg.create({
+    //         instructionID: instruction.instructionID,
+    //         imageURL: uploadedStepImg.secure_url
+    //       }, { transaction: t });
+    //       stepImageIndex++;
+    //     }
+    //   }
+    // }
 
     await t.commit();
     res.json({ msg: 'Recipe added successfully!', RecipeID });
@@ -393,6 +428,7 @@ router.post('/addnew', upload.fields([
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // Get all recipes with tags
 router.get('/', async (req, res) => {
@@ -420,6 +456,7 @@ router.get('/', async (req, res) => {
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 // Search with optional filters
 router.get('/search', async (req, res) => {
@@ -507,10 +544,38 @@ const unitToGram = {
   'ถ้วย': 240
 };
 
+
 router.get('/:id', async (req, res) => {
   try {
-    const userId = req.session.user?.id || 0;
+    const userId = req.session.user?.id || null;
     const recipeId = req.params.id;
+    const sessionId = req.session.id; // track anonymous users
+
+    const ONE_HOUR = 1000 * 60 * 60;
+
+    const existingView = await RecipeView.findOne({
+      where: {
+        RecipeID: recipeId,
+        [Op.or]: [
+          { UserID: userId },
+          { sessionId: sessionId }
+        ],
+        view_at: {
+          [Op.gte]: new Date(Date.now() - ONE_HOUR)
+        }
+      }
+    });
+
+    // --- Record a new view if none found ---
+    if (!existingView) {
+      await RecipeView.create({
+        RecipeID: recipeId,
+        UserID: userId,
+        sessionId: userId ? null : sessionId, // only store session for anonymous
+        view_at: new Date()
+      });
+    }
+
 
     const recipe = await Recipe.findByPk(recipeId, {
       include: [
@@ -576,6 +641,7 @@ router.get('/:id', async (req, res) => {
     const ingredients = [];
     const nutrients = { calories: 0, protein: 0, fat: 0, carbs: 0 };
     recipe.Ingredients.forEach(ing => {
+      console.log('Processing ingredient:', ing.DataIngredient);
       const data = ing.DataIngredient;
       const factor = unitToGram[ing.Unit] || 1; // fallback 1 if unit not mapped
       const amountInGrams = ing.Quantity * factor;
@@ -621,6 +687,11 @@ router.get('/:id', async (req, res) => {
   }
 });
 
+function extractPublicId(url) {
+  const match = url.match(/upload\/(?:v\d+\/)?(.+)\.[a-zA-Z]+$/);
+  return match ? match[1] : null;
+}
+
 router.put('/:id/edit', upload.fields([
   { name: 'recipeImage', maxCount: 1 },
   { name: 'stepImages', maxCount: 50 }
@@ -651,7 +722,7 @@ router.put('/:id/edit', upload.fields([
     // 2️⃣ Handle main recipe image explicitly
     if (removeRecipeImage === 'true') {
       if (recipe.ImageURL) {
-        const public_id = recipe.ImageURL.match(/\/([^\/]+)\.[a-z]+$/)[1];
+        const public_id = extractPublicId(recipe.ImageURL);
         await cloudinary.uploader.destroy(public_id);
         recipe.ImageURL = null;
         await recipe.save({ transaction: t });
@@ -659,7 +730,7 @@ router.put('/:id/edit', upload.fields([
     } else if (req.files?.recipeImage?.[0]) {
       // Upload new image
       if (recipe.ImageURL) {
-        const public_id = recipe.ImageURL.match(/\/([^\/]+)\.[a-z]+$/)[1];
+        const public_id = extractPublicId(recipe.ImageURL);
         await cloudinary.uploader.destroy(public_id);
       }
       const uploadedRecipe = await cloudinary.uploader.upload_stream_async(
@@ -693,26 +764,33 @@ router.put('/:id/edit', upload.fields([
       }
     }
 
-    // 4️⃣ Ingredients (same as before)
+    // 4️⃣ Ingredients
     const existingIngredients = await Ingredient.findAll({
       where: { RecipeID },
       include: [DataIngredient],
       transaction: t
     });
+
+    // Remove old ingredients not in the new list
     for (const oldIng of existingIngredients) {
       if (!ingArr.find(i => i.name === oldIng.DataIngredient?.name_th)) {
         await oldIng.destroy({ transaction: t });
       }
     }
+
+    // Add or update new ingredients
     for (const ing of ingArr) {
       if (!ing.name) continue;
-      let dataIng = await DataIngredient.findOne({ where: { name_th: ing.name }, transaction: t });
-      if (!dataIng) dataIng = await DataIngredient.create({ name_th: ing.name }, { transaction: t });
 
+      // ✅ Replace with your smart finder
+      const dataIng = await findOrCreateIngredient(ing.name, t);
+
+      // Update or insert Ingredient row
       let existing = await Ingredient.findOne({
         where: { RecipeID, RawIngredientID: dataIng.RawIngredientID },
         transaction: t
       });
+
       if (existing) {
         existing.Quantity = ing.quantity || 0;
         existing.Unit = ing.unit || '';
@@ -727,6 +805,7 @@ router.put('/:id/edit', upload.fields([
       }
     }
 
+
     // 5️⃣ Steps & Step Images
     const existingSteps = await Instruction.findAll({
       where: { RecipeID },
@@ -734,7 +813,7 @@ router.put('/:id/edit', upload.fields([
       order: [['instructionID', 'ASC']],
       transaction: t
     });
-
+    // console.dir(instructions);
     for (let i = 0; i < stepsArr.length; i++) {
       const step = stepsArr[i];
       let instruction = existingSteps[i];
@@ -758,16 +837,16 @@ router.put('/:id/edit', upload.fields([
       for (const oldImg of oldImages) {
         const stillExists = stepImagesFromFrontend.find(f => f.url === oldImg.imageURL && f.isOld);
         if (!stillExists) {
-          const public_id = oldImg.imageURL.match(/\/([^\/]+)\.[a-z]+$/)[1];
+          const public_id = extractPublicId(oldImg.imageURL);
           await cloudinary.uploader.destroy(public_id);
           await oldImg.destroy({ transaction: t });
         }
       }
 
       // Upload new files
-      const newFiles = stepImagesFromFrontend.filter(f => !f.isOld && f.originFileObj);
+      const newFiles = stepImagesFromFrontend.filter(f => f.new && f.tempName);
       for (const file of newFiles) {
-        const matchedFile = req.files?.stepImages?.find(f => f.originalname === file.originFileObj.name);
+        const matchedFile = req.files?.stepImages?.find(f => f.originalname === file.tempName);
         if (!matchedFile) continue;
 
         const uploaded = await cloudinary.uploader.upload_stream_async(
@@ -780,6 +859,7 @@ router.put('/:id/edit', upload.fields([
           imageURL: uploaded.secure_url
         }, { transaction: t });
       }
+
     }
 
     // Delete old steps not in frontend
@@ -801,8 +881,6 @@ router.put('/:id/edit', upload.fields([
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-
 
 
 
@@ -851,8 +929,6 @@ router.post('/:id/comments', async (req, res) => {
     res.status(500).json({ error: "Internal server error" });
   }
 });
-
-
 
 
 module.exports = router;
