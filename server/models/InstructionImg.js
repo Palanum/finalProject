@@ -1,7 +1,6 @@
 // models/InstructionImg.js
 const { DataTypes } = require('sequelize');
 const sequelize = require('../db'); // adjust path
-const Instruction = require('./Instruction');
 
 const InstructionImg = sequelize.define('InstructionImg', {
     instruction_imgID: {

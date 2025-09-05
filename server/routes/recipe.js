@@ -305,7 +305,6 @@ router.post('/addnew', upload.fields([
   const ingArr = ingredients ? JSON.parse(ingredients) : [];
   const stepsArr = instructions ? JSON.parse(instructions) : [];
   const tagsArr = tags ? JSON.parse(tags) : [];
-  const allStepImages = req.files?.stepImages || [];
 
   const t = await sequelize.transaction();
 
@@ -583,7 +582,7 @@ router.get('/:id', async (req, res) => {
         { model: Category, through: { attributes: [] } },
         {
           model: Instruction,
-          include: [{ model: InstructionImg, attributes: ['imageURL'] }]
+          include: [{ model: InstructionImg, attributes: ['instruction_imgID', 'imageURL'] }]
         },
         {
           model: Ingredient,
@@ -634,14 +633,17 @@ router.get('/:id', async (req, res) => {
     const instructions = recipe.Instructions.map(i => ({
       id: i.instructionID,
       text: i.details,
-      images: i.InstructionImgs.map(img => img.imageURL)
+      images: i.InstructionImgs.map(img => ({
+        id: img.instruction_imgID,
+        url: img.imageURL
+      }))
     }));
 
     // Build ingredients & calculate nutrients
     const ingredients = [];
     const nutrients = { calories: 0, protein: 0, fat: 0, carbs: 0 };
     recipe.Ingredients.forEach(ing => {
-      console.log('Processing ingredient:', ing.DataIngredient);
+      // console.log('Processing ingredient:', ing.DataIngredient);
       const data = ing.DataIngredient;
       const factor = unitToGram[ing.Unit] || 1; // fallback 1 if unit not mapped
       const amountInGrams = ing.Quantity * factor;
@@ -659,8 +661,7 @@ router.get('/:id', async (req, res) => {
         unit: ing.Unit
       });
     });
-
-    res.json({
+    const sentData = {
       RecipeID: recipe.RecipeID,
       Title: recipe.Title,
       time: recipe.time,
@@ -669,7 +670,10 @@ router.get('/:id', async (req, res) => {
       isFavorite: recipe.Favorites.length > 0,
       isLike: recipe.Likes.length > 0,
       user: { id: recipe.User.id, username: recipe.User.username },
-      categories: recipe.Categories.map(c => c.Name),
+      categories: recipe.Categories.map(c => ({
+        id: c.id,
+        name: c.Name
+      })),
       instructions,
       ingredients,
       nutrients: {
@@ -679,7 +683,9 @@ router.get('/:id', async (req, res) => {
         carbs: Math.round(nutrients.carbs * 10) / 10
       },
       comments: commentsTree
-    });
+    }
+    // console.dir(sentData, { depth: null });
+    res.json(sentData);
 
   } catch (err) {
     console.error("Error fetching recipe:", err);

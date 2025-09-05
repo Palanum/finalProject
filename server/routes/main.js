@@ -1,9 +1,23 @@
 const express = require('express');
 const router = express.Router();
 
-const { Recipe, User, Category } = require('../models');
-const { Op } = require('sequelize');
+const {
+  Category,
+  Comment,
+  DataIngredient,
+  Favorite,
+  Ingredient,
+  Instruction,
+  InstructionImg,
+  Like,
+  Recipe,
+  RecipeCategory,
+  RecipeView,
+  User
+} = require('../models');
+
 const sequelize = require('../db'); // ✅ correct
+const { Op } = require('sequelize');
 
 router.get('/home', async (req, res) => {
   try {

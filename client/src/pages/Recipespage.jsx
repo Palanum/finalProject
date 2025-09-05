@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useContext } from "react";
 import { useParams } from "react-router-dom";
-import { Card, Row, Col, List, Typography, Image, Spin, Tag, Input, Button, Space, message, Tabs } from "antd";
+import { Card, Row, Col, List, Typography, Image, Spin, Select, Form, Modal, Upload, Radio, Tag, Input, Button, Space, message, Tabs } from "antd";
+import { PlusOutlined } from "@ant-design/icons";
 import Videoiframe from "../components/Videoiframe";
 import { AuthContext } from "../context/AuthContext";
 const { Title, Text, Paragraph } = Typography;
@@ -9,7 +10,6 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 import { fas } from '@fortawesome/free-solid-svg-icons'
 import { far } from '@fortawesome/free-regular-svg-icons'
 import { fab } from '@fortawesome/free-brands-svg-icons'
-import axios from 'axios';
 
 library.add(fas, far, fab)
 export default function Recipespage() {
@@ -20,6 +20,8 @@ export default function Recipespage() {
     const [activeKey, setActiveKey] = useState("1");
     const [newComment, setNewComment] = useState("");
     const [replyToCommentId, setReplyToCommentId] = useState(null);
+    const autoSetReportedId = useRef(false);
+
     // Refs for jump targets
     const descRef = useRef(null);
     const videoRef = useRef(null);
@@ -66,8 +68,6 @@ export default function Recipespage() {
         }
     };
 
-
-
     const toggleLike = async () => {
         if (!user) {
             // User is not logged in
@@ -108,6 +108,7 @@ export default function Recipespage() {
             setRecipe(prev => ({ ...prev, isLike: !prev.isLike }));
         }
     };
+
     useEffect(() => {
         fetch(`/api/recipes/${id}`)
             .then(res => res.json())
@@ -146,7 +147,6 @@ export default function Recipespage() {
         return () => window.removeEventListener("scroll", handleScroll);
     }, [activeKey]);
 
-
     const handleTabChange = (key) => {
         let target;
         if (key === "1") target = descRef.current;
@@ -158,6 +158,7 @@ export default function Recipespage() {
             target.scrollIntoView({ behavior: "smooth", block: "start" });
         }
     };
+
     const items = [
         { key: "1", label: "Description" },
         { key: "2", label: "Instructions" },
@@ -217,6 +218,7 @@ export default function Recipespage() {
             message.error("Something went wrong");
         }
     };
+
     // Helper to find a comment by ID in the tree
     const findCommentById = (comments, id) => {
         for (let comment of comments) {
@@ -229,7 +231,86 @@ export default function Recipespage() {
         return null;
     };
 
+    const [reportModalVisible, setReportModalVisible] = useState(false);
+    const [reportForm] = Form.useForm();
 
+    const handleOpenReport = () => {
+        if (!user) {
+            message.warning("Please login to report");
+            return;
+        }
+        setReportModalVisible(true);
+    }
+    const handleCloseReport = () => {
+        setReportModalVisible(false);
+        reportForm.resetFields();
+    };
+    const getReportedId = (type) => {
+        switch (type) {
+            case "recipe":
+            case "recipe_image":
+            case "video": return recipe.RecipeID;
+            case "user": return recipe.user.id;
+            default: return null;
+        }
+    };
+    const singleElementTypes = ["recipe", "recipe_image", "video", "user"];
+    const handleSubmitReport = async (values) => {
+        try {
+            const formData = new FormData();
+            formData.append("reason", values.description);
+            if (values.images) {
+                values.images.forEach(file => {
+                    formData.append("images", file.originFileObj);
+                });
+            }
+            let reportedID = singleElementTypes.includes(values.type) ? getReportedId(values.type) : values.reported_id;
+            formData.append("reported_id", reportedID);
+            const reportType = values.type === "other" ? values.customType : values.type;
+            formData.append("type", reportType);
+
+            // Debug
+            console.log("FormData contents:");
+            for (let pair of formData.entries()) {
+                console.log(pair[0], pair[1]);
+            }
+
+            // --- Confirmation ---
+            Modal.confirm({
+                title: `ต้องการส่งรายงานของ เมนู ${recipe.Title} ที่สร้างโดย ${recipe.user.username} ? `,
+                content: 'คุณแน่ใจหรือไม่ว่าต้องการดำเนินการต่อ',
+                okText: 'ยืนยัน',
+                cancelText: 'ยกเลิก',
+                onOk: async () => {
+                    try {
+                        const res = await fetch(`/api/users/${recipe.RecipeID}/report`, {
+                            method: "POST",
+                            body: formData,
+                        });
+
+                        if (!res.ok) {
+                            const text = await res.text();
+                            console.error("Report API failed:", text);
+                            message.error("Failed to submit report");
+                            return;
+                        }
+
+                        message.success("Report submitted!");
+                        handleCloseReport();
+                    } catch (err) {
+                        console.error(err);
+                        message.error('Submission failed! See console.');
+                    }
+                }
+            });
+
+
+
+        } catch (err) {
+            console.error(err);
+            message.error("Something went wrong");
+        }
+    };
 
     if (loading) return <Spin style={{ display: "block", margin: "50px auto" }} />;
 
@@ -240,6 +321,158 @@ export default function Recipespage() {
             <Title level={2} style={{ textAlign: "center" }}>
                 {recipe.Title}
             </Title>
+            <Space style={{ marginBottom: 16 }}>
+                <Button danger onClick={handleOpenReport}>Report</Button>
+            </Space>
+
+            <Modal
+                title="Report Recipe"
+                open={reportModalVisible}
+                onCancel={handleCloseReport}
+                onOk={() => reportForm.submit()}
+            >
+                <Form
+                    form={reportForm}
+                    layout="vertical"
+                    onFinish={handleSubmitReport}
+                >
+                    {/* Type of Report */}
+                    <Form.Item
+                        label="Type of Report"
+                        name="type"
+                        rules={[{ required: true, message: "Please select report type" }]}
+                    >
+                        <Select placeholder="Select type">
+                            <Select.Option value="user">Name of User</Select.Option>
+                            <Select.Option value="recipe">Recipe Title</Select.Option>
+                            <Select.Option value="ingredient">Ingredient</Select.Option>
+                            <Select.Option value="instruction">Instruction</Select.Option>
+                            <Select.Option value="recipe_image">Image of Recipe</Select.Option>
+
+                            {recipe.categories.length > 0
+                                ? <Select.Option value="category">Tag</Select.Option>
+                                : null}
+                            <Select.Option value="instruction_image">Image of Instruction</Select.Option>
+                            {recipe.videoURL
+                                ? <Select.Option value="video">Video</Select.Option>
+                                : null}
+
+                            {recipe.comments.length > 0
+                                ? <Select.Option value="comment">Comment/Reply</Select.Option>
+                                : null}
+
+                            <Select.Option value="other">Other</Select.Option>
+                        </Select>
+                    </Form.Item>
+
+                    {/* Custom Type for "Other" */}
+                    <Form.Item shouldUpdate>
+                        {() => reportForm.getFieldValue("type") === "other" && (
+                            <Form.Item
+                                label="Custom Type"
+                                name="customType"
+                                rules={[
+                                    { required: true, message: "Please enter a custom type" },
+                                    { max: 30, message: "Maximum 30 characters" },
+                                ]}
+                            >
+                                <Input placeholder="Enter custom type (max 30 chars)" />
+                            </Form.Item>
+                        )}
+                    </Form.Item>
+
+                    {/* Reported Element */}
+                    <Form.Item shouldUpdate>
+                        {({ getFieldValue }) => {
+                            const type = getFieldValue("type");
+                            if (!type) return null;
+
+                            // Multi-option types
+                            let options = [];
+                            let useRadioWithImages = false;
+                            if (type === "ingredient" && recipe.ingredients.length > 0) options = recipe.ingredients.map(i => ({ value: i.id, label: i.name }));
+                            if (type === "instruction" && recipe.instructions.length > 0) options = recipe.instructions.map(i => ({ value: i.id, label: i.text.slice(0, 30) + "..." }));
+                            if (type === "instruction_image" && recipe.instructions.some(i => i.images.length > 0)) {
+                                useRadioWithImages = true;
+                                options = recipe.instructions.flatMap(i =>
+                                    i.images.map(img => ({
+                                        value: img.id,
+                                        label: `Step ${i.id} Image`,
+                                        imgUrl: img.url
+                                    }))
+                                );
+                            }
+                            if (type === "comment" && recipe.comments.length > 0) options = recipe.comments.map(c => ({
+                                value: c.id,
+                                label: `${c.user.username}: ${c.content.slice(0, 30)}...`
+                            }));
+
+                            if (!options.length) return null;
+
+                            return (
+                                <Form.Item
+                                    label="Select Element to Report"
+                                    name="reported_id"
+                                    rules={[{ required: true, message: "Please select the element" }]}
+                                >
+                                    {useRadioWithImages ? (
+                                        <Radio.Group>
+                                            <Space direction="vertical">
+                                                {options.map(opt => (
+                                                    <Radio key={opt.value} value={opt.value}>
+                                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                            <Image src={opt.imgUrl} alt={opt.label} width={80} />
+                                                            <span>{opt.label}</span>
+                                                        </div>
+                                                    </Radio>
+                                                ))}
+                                            </Space>
+                                        </Radio.Group>
+                                    ) : (
+                                        <Select placeholder="Select element">
+                                            {options.map(opt => (
+                                                <Select.Option key={opt.value} value={opt.value}>
+                                                    {opt.label}
+                                                </Select.Option>
+                                            ))}
+                                        </Select>
+                                    )}
+                                </Form.Item>
+                            );
+                        }}
+                    </Form.Item>
+
+                    {/* Description */}
+                    <Form.Item
+                        label="Description"
+                        name="description"
+                        rules={[{ required: true, message: "Please enter description" }]}
+                    >
+                        <Input.TextArea rows={4} placeholder="Describe the issue" />
+                    </Form.Item>
+
+                    {/* Upload Images */}
+                    <Form.Item
+                        label="Upload Images"
+                        name="images"
+                        valuePropName="fileList"
+                        getValueFromEvent={e => e && e.fileList}
+                    >
+                        <Upload
+                            listType="picture-card"
+                            accept="image/png, image/jpeg, image/jpg"
+                            beforeUpload={() => false}
+                            multiple>
+                            <div>
+                                <PlusOutlined />
+                                <div style={{ marginTop: 8 }}>Upload</div>
+                            </div>
+                        </Upload>
+                    </Form.Item>
+                </Form>
+            </Modal>
+
+
 
             <div style={{ textAlign: "center", marginBottom: 16 }}>
                 <Image
@@ -274,7 +507,7 @@ export default function Recipespage() {
                 <Row gutter={[16, 16]}>
                     <Col span={24}>
                         {recipe.categories.map((cat, i) => (
-                            <Tag color="green" key={i}>{cat}</Tag>
+                            <Tag color="green" key={i}>{cat.name}</Tag>
                         ))}
                     </Col>
                 </Row>
@@ -327,7 +560,7 @@ export default function Recipespage() {
                                             {inst.images.map((img, j) => (
                                                 <Image
                                                     key={j}
-                                                    src={img}
+                                                    src={img.url}
                                                     alt={`step ${j + 1}`}
                                                     width={100}
                                                     style={{ marginRight: 8 }}
@@ -359,8 +592,6 @@ export default function Recipespage() {
             )}
             <div ref={commentRef} style={{ marginTop: 32 }}>
                 <Title level={4}>Comments</Title>
-
-
                 <List
                     dataSource={recipe.comments}
                     renderItem={comment => (

@@ -3,10 +3,24 @@ const bcrypt = require('bcrypt');
 
 const router = express.Router();
 
-const { User, Recipe, Favorite, Like, Comment } = require('../models'); // models only
 const sequelize = require('../db'); // Sequelize instance
 const { Op } = require('sequelize');
-
+const {
+  Category,
+  Comment,
+  DataIngredient,
+  Favorite,
+  Ingredient,
+  Instruction,
+  InstructionImg,
+  Like,
+  Recipe,
+  RecipeCategory,
+  RecipeView,
+  Report,
+  ReportEvidence,
+  User
+} = require('../models');
 
 // ===== REGISTER =====
 router.post('/register', async (req, res) => {
@@ -354,7 +368,59 @@ router.post("/alarm/mark-read", async (req, res) => {
   }
 });
 
+const multer = require('multer');
+const cloudinary = require('../config/cloudinary');
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
+cloudinary.uploader.upload_stream_async = function (buffer, options = {}) {
+  const streamifier = require('streamifier');
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
+      if (err) reject(err);
+      else resolve(result);
+    });
+    streamifier.createReadStream(buffer).pipe(stream);
+  });
+};
+
+router.post("/:id/report", upload.array("images"), async (req, res) => {
+  if (!req.session?.user) return res.status(401).json({ error: "กรุณาเข้าสู่ระบบก่อน" });
+  const reporterId = req.session.user.id;
+  const { reason, reported_id, type } = req.body;
+
+  try {
+    // Create a report entry in the database
+    const report = await Report.create({
+      Reporter_id: reporterId,
+      reason,
+      reported_type: type,
+      reported_id: reported_id,
+      status: 'pending',
+      created_on: new Date()
+    });
+    const ReportID = report.ReportID;
+    if (req.files && req.files.length > 0) {
+      for (const file of req.files) {
+        const uploaded = await cloudinary.uploader.upload_stream_async(
+          file.buffer,
+          { folder: `image_project/report_image/report_${reported_id}` }
+        );
+
+        await ReportEvidence.create({
+          ReportID,
+          file_url: uploaded.secure_url,
+          file_type: uploaded.resource_type,
+          created_on: new Date(),
+        });
+      }
+    }
+    res.json({ success: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
 
 
 

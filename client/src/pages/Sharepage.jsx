@@ -91,13 +91,13 @@ function Sharepage({ initialData = null, mode = "create" }) {
           console.log("Recipe Image: removed");
         } else if (recipeFileList[0]?.originFileObj) {
           formData.append('recipeImage', recipeFileList[0].originFileObj);
-          console.log("Recipe Image: new upload", recipeFileList[0].originFileObj);
+          // console.log("Recipe Image: new upload", recipeFileList[0].originFileObj);
         } else {
-          console.log("Recipe Image: kept old", recipeFileList[0].url);
+          // console.log("Recipe Image: kept old", recipeFileList[0].url);
         }
       } else if (recipeFileList[0]?.originFileObj) {
         formData.append('recipeImage', recipeFileList[0].originFileObj);
-        console.log("Recipe Image: new upload", recipeFileList[0].originFileObj);
+        // console.log("Recipe Image: new upload", recipeFileList[0].originFileObj);
       }
 
       // --- Ingredients ---
@@ -130,9 +130,9 @@ function Sharepage({ initialData = null, mode = "create" }) {
       // --- Tags / Categories ---
       formData.append('tags', JSON.stringify(values.tags?.map(t => t.tag) || []));
 
-      console.log("=== FormData prepared for backend ===");
+      // console.log("=== FormData prepared for backend ===");
       for (let [key, value] of formData.entries()) console.log(key, value);
-      console.log("===================================");
+      // console.log("===================================");
 
       // --- Confirmation ---
       Modal.confirm({
