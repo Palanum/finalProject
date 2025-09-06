@@ -20,7 +20,8 @@ library.add(fas, far, fab)
 export default function NavBar({ isLoggedIn }) {
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const count = useUnreadAlarms();
+  const [count, refreshCount] = useUnreadAlarms();
+
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -62,12 +63,15 @@ export default function NavBar({ isLoggedIn }) {
             <>
               <li>
                 <Badge count={count} size="small">
-                  <Link to="/profile#alarm">
+                  <Link
+                    to="/profile#alarm"
+                    onClick={() => refreshCount()}
+                  >
                     <FontAwesomeIcon icon="fa-solid fa-bell" />
                   </Link>
                 </Badge>
               </li>
-              <li><ProfileMenu count={count} /></li>
+              <li><ProfileMenu count={count} refreshCount={refreshCount} /></li>
             </>
           ) : (
             <li><Loginbtn /></li>
@@ -78,11 +82,10 @@ export default function NavBar({ isLoggedIn }) {
   );
 }
 
-function ProfileMenu({ count }) {
+function ProfileMenu({ count, refreshCount }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef();
   const { logout } = useContext(AuthContext);
-  const toggleMenu = () => setOpen(!open);
 
   // Close dropdown if clicking outside
   useEffect(() => {
@@ -94,6 +97,16 @@ function ProfileMenu({ count }) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const toggleMenu = () => {
+    const newOpen = !open;
+    setOpen(newOpen);
+
+    // Refresh alarm count only when opening the menu
+    if (newOpen) {
+      refreshCount();
+    }
+  };
 
   return (
     <div className="profile-menu-wrapper" ref={menuRef}>
@@ -122,14 +135,19 @@ function useUnreadAlarms() {
   const { user } = useContext(AuthContext);
   const [count, setCount] = useState(0);
 
-  useEffect(() => {
+  const fetchCount = () => {
     if (user) {
-      fetch("/api/users/alarm/count") // endpoint returning only count
+      fetch("/api/users/alarm/count")
         .then(res => res.json())
         .then(data => setCount(data.count))
         .catch(err => console.error("Error fetching alarm count:", err));
     }
+  };
+
+  useEffect(() => {
+    fetchCount();
   }, [user]);
 
-  return count;
+  return [count, fetchCount];
 }
+

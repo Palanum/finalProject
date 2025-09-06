@@ -837,8 +837,9 @@ router.put('/:id/edit', upload.fields([
       }
 
       const stepImagesFromFrontend = step.stepImages || [];
+      console.log('Step images from frontend:', stepImagesFromFrontend.map(img => img.url));
       const oldImages = instruction.InstructionImgs || [];
-
+      console.log('Old images:', oldImages.map(img => img.imageURL));
       // Delete images removed in frontend
       for (const oldImg of oldImages) {
         const stillExists = stepImagesFromFrontend.find(f => f.url === oldImg.imageURL && f.isOld);

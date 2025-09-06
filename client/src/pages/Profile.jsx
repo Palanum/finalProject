@@ -18,9 +18,6 @@ const Profile = () => {
             }
         }
     }, [location]);
-    useEffect(() => {
-
-    })
 
     return (
         <div className="flex">
@@ -233,6 +230,7 @@ function AlarmSection() {
     const { user } = useContext(AuthContext);
     const [alarms, setAlarms] = useState([]);
     const [loading, setLoading] = useState(false);
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (!user) return;
@@ -266,7 +264,17 @@ function AlarmSection() {
         }
 
         return (
-            <List.Item key={`${alarm.type}-${alarm.RecipeID}-${alarm.CreatedAt}`}>
+            <List.Item
+                key={`${alarm.type}-${alarm.RecipeID}-${alarm.CreatedAt}`}
+                actions={[
+                    <Button
+                        type="link"
+                        onClick={() => navigate(`/recipes/${alarm.RecipeID}`)}
+                    >
+                        ดู
+                    </Button>
+                ]}
+            >
                 <List.Item.Meta
                     avatar={<Avatar src={alarm.recipeImage || "/default.png"} />}
                     title={
