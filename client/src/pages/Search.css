@@ -1,0 +1,16 @@
+/* Input field normal */
+.ant-input {
+    border-radius: 1.5rem;
+    /* match button style */
+    transition: all 0.2s ease;
+}
+
+/* Input field focus */
+.ant-input:focus {
+    border-color: var(--btn-g);
+    /* green border */
+    box-shadow: 0 0 0 2px rgba(82, 196, 26, 0.2);
+    /* subtle green glow */
+    outline: none;
+    /* remove default outline */
+}

@@ -7,13 +7,13 @@ const User = sequelize.define('User', {
     password_hash: { type: DataTypes.STRING },
     role: { type: DataTypes.ENUM('admin', 'user'), defaultValue: 'user' },
     status: { type: DataTypes.ENUM('normal', 'banned'), defaultValue: 'normal' },
-    stat_update: { type: DataTypes.DATE },
-    last_alarm_view: { type: DataTypes.DATE },
+    stat_update: { type: DataTypes.DATE },// to see status changed date
+    last_alarm_view: { type: DataTypes.DATE },// to track last alarm view time
 }, {
     tableName: 'users',
     timestamps: true,
-    createdAt: 'created_at', // map to existing column
-    updatedAt: 'updated_at' // automatically creates createdAt and updatedAt
+    createdAt: 'created_at', // to see registration date
+    updatedAt: 'updated_at'
 });
 
 module.exports = User;

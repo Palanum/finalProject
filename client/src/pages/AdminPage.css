@@ -1,0 +1,8 @@
+.admin-section-container>section {
+    scroll-margin-top: var(--head-h);
+    border-radius: 1.5rem;
+    box-shadow: var(--shadow-1);
+    /* min-height: 100vh; */
+    padding: 1.5rem;
+    margin: 1.5rem;
+}

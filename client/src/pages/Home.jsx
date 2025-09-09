@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react'
 import './Home.css';  // CSS file for styling
 import { Normalbtn, Sharebtn } from '../components/Button';
 import { Row, Col, Card, Tag } from "antd";
-import axios from 'axios';
 
 function Home() {
   const [textSearch, setTextSearch] = useState('');

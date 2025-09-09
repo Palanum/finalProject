@@ -85,8 +85,7 @@ export default function NavBar({ isLoggedIn }) {
 function ProfileMenu({ count, refreshCount }) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef();
-  const { logout } = useContext(AuthContext);
-
+  const { logout, user } = useContext(AuthContext);
   // Close dropdown if clicking outside
   useEffect(() => {
     const handleClickOutside = (e) => {
@@ -116,6 +115,9 @@ function ProfileMenu({ count, refreshCount }) {
 
       {open && (
         <ul className="profile-dropdown">
+          {user && user.role === 'admin' && (
+            <li><Link to="/admin">Dashboard</Link></li>
+          )}
           <li><Link to="/profile#profile">My Profile</Link></li>
           <li><Link to="/profile#favorite">Favorite</Link></li>
           <li><Link to="/profile#myRecipe">My Recipes</Link></li>

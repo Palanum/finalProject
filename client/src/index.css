@@ -24,13 +24,7 @@ a {
   color: inherit;
 }
 
-html {
-  font-size: 14px;
-  background-color: var(--bg-main);
-  color: var(--text-yellow);
-  min-width: 640px;
-  scroll-behavior: smooth;
-}
+
 
 /* Set default font settings */
 body {
@@ -388,7 +382,7 @@ textarea:focus {
 }
 
 :root {
-  --yellow-yolk: hsl(42, 93%, 64%);
+  --yellow-yolk: #f9c54e;
   --yellow-yolk-darker: hsl(42, 93%, 54%);
   --bg-main: #FAF9F6;
   --bg-yellow: #fef3c7;
@@ -413,8 +407,18 @@ textarea:focus {
   --shadow-inner: inset 0px 0px 3px 0px rgba(92, 92, 92, 0.7);
 }
 
+html {
+  font-size: 14px;
+  /* Base size for mobile */
+  background-color: var(--bg-main);
+  color: var(--text-yellow);
+  min-width: 640px;
+  scroll-behavior: smooth;
+}
+
 @media (min-width: 768px) {
-  html * {
-    font-size: 16px !important;
+  html {
+    font-size: 16px;
+    /* Base size for tablets and up */
   }
 }

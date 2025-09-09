@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Input, Card, Tag, Row, Col, Slider, Switch, Button, InputNumber } from "antd";
+import '../components/Button.css';
+import './Search.css';
 const { Meta } = Card;
-const { Search: AntSearch } = Input;
+const { Search } = Input;
 
 const RecipesAndSearchPage = () => {
   const location = useLocation();
@@ -80,15 +82,27 @@ const RecipesAndSearchPage = () => {
 
       {/* Basic search */}
       <div className="search-container flex gap-2 align-center" style={{ marginBottom: "10px" }}>
-        <AntSearch
+        <Search
           placeholder="ค้นหาสูตรอาหาร..."
           allowClear
-          enterButton="ค้นหา"
+          enterButton={
+            <Button
+              type="primary"
+              style={{
+                backgroundColor: "var(--btn-g)",
+                color: "var(--white)",
+                padding: "0.5rem 1rem",
+                boxShadow: "0px 1px 2px rgba(166, 175, 195, 0.25)",
+              }}
+            >
+              ค้นหา
+            </Button>
+          }
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onSearch={onSearch}
         />
-        <Button type="link" onClick={() => setShowAdvanced(!showAdvanced)}>
+        <Button className="link-btn link-green" type="link" onClick={() => setShowAdvanced(!showAdvanced)}>
           {showAdvanced ? "ซ่อนตัวกรองขั้นสูง" : "ตัวกรองขั้นสูง"}
         </Button>
       </div>
@@ -114,6 +128,7 @@ const RecipesAndSearchPage = () => {
                       value={minTime}
                       disabled={!includeMinTime}
                       onChange={(e) => setMinTime(Number(e.target.value))}
+
                     />
                   </Col>
 

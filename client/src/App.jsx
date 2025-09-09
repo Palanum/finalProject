@@ -2,9 +2,13 @@
 import { Routes, Route } from 'react-router-dom';
 import React, { useContext } from 'react'
 
+import { AuthContext } from './context/AuthContext';
+
 import NavBar from './components/Navbar';
 import Footer from './components/Footer';
+
 import './App.css';
+
 import Home from './pages/Home';
 import { Login, Register } from './pages/Form'
 import Profile from "./pages/Profile";
@@ -12,7 +16,8 @@ import RecipesAndSearchPage from './pages/Search';
 import Sharepage from './pages/Sharepage';
 import Recipespage from './pages/Recipespage';
 import EditRecipePage from './pages/EditRecipePage';
-import { AuthContext } from './context/AuthContext';
+import AdminPage from './pages/AdminPage';
+
 import ProtectedRoute from './components/Protectroute';
 function App() {
   const { user } = useContext(AuthContext);
@@ -30,6 +35,13 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route path="/admin" element={
+          <ProtectedRoute
+            messageText="You must be an admin to access this page"
+            requiredRole={['admin']}>
+            <AdminPage />
+          </ProtectedRoute>
+        } />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
         <Route

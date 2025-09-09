@@ -4,7 +4,8 @@ const bcrypt = require('bcrypt');
 const router = express.Router();
 
 const sequelize = require('../db'); // Sequelize instance
-const { Op } = require('sequelize');
+const { Sequelize, Op } = require('sequelize'); // add Op
+
 const {
   Category,
   Comment,
@@ -34,7 +35,7 @@ router.post('/register', async (req, res) => {
     // Check existing user/email
     const existing = await User.findOne({
       where: {
-        [sequelize.Op.or]: [{ username }, { email }]
+        [Op.or]: [{ username }, { email }]
       },
       transaction: t
     });
@@ -422,8 +423,165 @@ router.post("/:id/report", upload.array("images"), async (req, res) => {
   }
 });
 
+function requireAdmin(req, res, next) {
+  if (!req.session.user || req.session.user.role !== 'admin') {
+    return res.status(403).json({ error: 'Forbidden: Admins only' });
+  }
+  next();
+}
+
+router.get("/admin/data", requireAdmin, async (req, res) => {
+  if (!req.session?.user)
+    return res.status(401).json({ error: "กรุณาเข้าสู่ระบบก่อน" });
+
+  if (req.session.user.role !== 'admin')
+    return res.status(403).json({ error: "คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้" });
+
+  try {
+    // Total counts
+    const userCount = await User.count();
+    const recipeCount = await Recipe.count();
+    const pendingReportCount = await Report.count({ where: { status: 'pending' } });
+
+    // Last 30 days
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const recentUserCount = await User.count({
+      where: {
+        created_at: { [Op.gte]: thirtyDaysAgo }
+      }
+    });
+
+    const recentRecipeCount = await Recipe.count({
+      where: {
+        CreatedAt: { [Op.gte]: thirtyDaysAgo }
+      }
+    });
+
+    return res.json({
+      counts: {
+        totalUsers: userCount,
+        usersLast30Days: recentUserCount,
+        totalRecipes: recipeCount,
+        recipesLast30Days: recentRecipeCount,
+        pendingReports: pendingReportCount
+      }
+    });
+
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Server error" });
+  }
+});
+
+router.get('/admin/user', requireAdmin, async (req, res) => {
+  try {
+    const users = await User.findAll({
+      attributes: ['id', 'username', 'email', 'role', 'status', 'created_at', 'updated_at']
+    });
+    res.json(users);
+  } catch (err) {
+    console.error('Error fetching users:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/**
+ * BAN or UNBAN a user
+ */
+router.patch('/admin/user/:id/ban', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { action, days } = req.body; // days is used only for "ban"
+
+  try {
+    const user = await User.findByPk(id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    if (action === 'ban') {
+      if (!days || isNaN(days) || days < 1) {
+        return res.status(400).json({ error: 'Invalid number of days' });
+      }
+      user.status = 'banned';
+      // Set stat_update to the unban date
+      const unbanDate = new Date();
+      unbanDate.setDate(unbanDate.getDate() + parseInt(days));
+      user.stat_update = unbanDate;
+    } else if (action === 'unban') {
+      user.status = 'normal';
+      user.stat_update = new Date(); // now
+    } else {
+      return res.status(400).json({ error: 'Invalid action' });
+    }
+
+    await user.save();
+    res.json({ message: `User ${action}ned successfully`, user });
+  } catch (err) {
+    console.error('Error updating user status:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 
+/**
+ * DELETE a user
+ */
+router.delete('/admin/user/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  try {
+    const deleted = await User.destroy({ where: { id } });
+    if (!deleted) return res.status(404).json({ error: 'User not found' });
+    res.json({ message: 'User deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting user:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+router.post('/admin/user/:id/alarm', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { message } = req.body;
+
+  try {
+    const user = await User.findByPk(id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    // Create alarm entry in Comment table
+    const alarm = await Comment.create({
+      RecipeID: null, // not tied to a recipe
+      UserID: user.id,
+      ParentCommentID: null,
+      Content: message,
+      type: 'alarm',
+      CreatedAt: new Date(),
+    });
+
+    res.json({ message: 'Alarm sent successfully', alarm });
+  } catch (err) {
+    console.error('Error sending alarm:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+router.patch('/admin/user/:id/role', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { role } = req.body;
+
+  if (!role || !['admin', 'user'].includes(role)) {
+    return res.status(400).json({ error: 'Invalid role' });
+  }
+
+  try {
+    const user = await User.findByPk(id);
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    user.role = role;
+    await user.save();
+
+    res.json({ message: `User role updated to ${role}`, user });
+  } catch (err) {
+    console.error('Error updating user role:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 // ===== AUTH CHECK =====
 // GET /api/users/me
