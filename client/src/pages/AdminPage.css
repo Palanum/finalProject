@@ -1,4 +1,8 @@
-.admin-section-container>section {
+.User-management-section,
+.Dashboard-section,
+.Recipe-management-section,
+.Comment-management-section,
+.Report-section {
     scroll-margin-top: var(--head-h);
     border-radius: 1.5rem;
     box-shadow: var(--shadow-1);

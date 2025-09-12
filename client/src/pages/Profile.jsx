@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import './Profile.css'
 import { AuthContext } from '../context/AuthContext';
 import { Changepass } from "./Form";
-import { List, Avatar, Button, Card, Space, Spin, Popconfirm, message, Tag } from "antd";
+import { List, Avatar, Button, Card, Space, Spin, Popconfirm, message, Modal, Tag, Pagination } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
 const Profile = () => {
     const { user } = useContext(AuthContext);
@@ -63,34 +63,52 @@ const Profile = () => {
         </div>
     )
 }
-const pageSize = 5;
+
 function FavoriteSection() {
     const { user } = useContext(AuthContext);
     const [favorites, setFavorites] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 5;
+    const navigate = useNavigate();
 
     useEffect(() => {
         if (user) {
             fetch("/api/users/favorites")
                 .then((res) => res.json())
-                .then((data) => {
-                    // console.dir(data);
-                    setFavorites(data);
-                })
+                .then((data) => setFavorites(data))
                 .catch((err) => console.error("Error fetching favorites:", err));
         }
     }, [user]);
 
     if (!user) return <p>กรุณาเข้าสู่ระบบ</p>;
 
+    const handlePageChange = (page) => setCurrentPage(page);
+
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const currentFavorites = favorites.slice(startIndex, endIndex);
+
     return (
         <section id="favorite" className="favorite-section">
-            <h3>สูตรโปรดของฉัน</h3>
-            {favorites.length === 0 ? (
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <h3>สูตรโปรดของฉัน</h3>
+                {favorites.length > pageSize && (
+                    <Pagination
+                        current={currentPage}
+                        pageSize={pageSize}
+                        total={favorites.length}
+                        onChange={handlePageChange}
+                        size="small"
+                    />
+                )}
+            </div>
+
+            {currentFavorites.length === 0 ? (
                 <p>คุณยังไม่มีสูตรโปรด</p>
             ) : (
                 <List
-                    grid={{ gutter: 16, column: 1 }} // 1 column per row
-                    dataSource={favorites}
+                    grid={{ gutter: 16, column: 1 }}
+                    dataSource={currentFavorites}
                     renderItem={(recipe) => (
                         <List.Item
                             key={recipe.RecipeID}
@@ -111,13 +129,7 @@ function FavoriteSection() {
                             />
                         </List.Item>
                     )}
-                    pagination={
-                        favorites.length > pageSize
-                            ? { pageSize: pageSize, showSizeChanger: false, showQuickJumper: true }
-                            : false
-                    }
                 />
-
             )}
         </section>
     );
@@ -126,6 +138,8 @@ function FavoriteSection() {
 function MyRecipeSection() {
     const { user } = useContext(AuthContext);
     const [myRecipes, setMyRecipes] = useState([]);
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 5;
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -141,9 +155,7 @@ function MyRecipeSection() {
 
     const handleDelete = async (recipeId) => {
         try {
-            const res = await fetch(`/api/recipes/${recipeId}`, {
-                method: "DELETE",
-            });
+            const res = await fetch(`/api/recipes/${recipeId}`, { method: "DELETE" });
             if (res.ok) {
                 message.success("ลบสูตรเรียบร้อยแล้ว");
                 setMyRecipes(myRecipes.filter((r) => r.RecipeID !== recipeId));
@@ -156,16 +168,33 @@ function MyRecipeSection() {
         }
     };
 
+    const handlePageChange = (page) => setCurrentPage(page);
+
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const currentRecipes = myRecipes.slice(startIndex, endIndex);
+
     return (
         <section id="myRecipe" className="myRecipe-section">
-            <h3>สูตรของฉัน</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <h3>สูตรของฉัน</h3>
+                {myRecipes.length > pageSize && (
+                    <Pagination
+                        current={currentPage}
+                        pageSize={pageSize}
+                        total={myRecipes.length}
+                        onChange={handlePageChange}
+                        size="small"
+                    />
+                )}
+            </div>
 
-            {myRecipes.length === 0 ? (
+            {currentRecipes.length === 0 ? (
                 <p>คุณยังไม่มีสูตรของตัวเอง</p>
             ) : (
                 <List
                     itemLayout="horizontal"
-                    dataSource={myRecipes}
+                    dataSource={currentRecipes}
                     renderItem={(recipe) => (
                         <List.Item
                             key={recipe.RecipeID}
@@ -183,7 +212,6 @@ function MyRecipeSection() {
                                     <Button
                                         type="default"
                                         icon={<EditOutlined />}
-
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             navigate(`/recipes/${recipe.RecipeID}/edit`);
@@ -214,22 +242,23 @@ function MyRecipeSection() {
                             />
                         </List.Item>
                     )}
-                    pagination={
-                        myRecipes.length > pageSize
-                            ? { pageSize: pageSize, showSizeChanger: false, showQuickJumper: true }
-                            : false
-                    }
                 />
-
             )}
         </section>
     );
 }
 
+
 function AlarmSection() {
     const { user } = useContext(AuthContext);
     const [alarms, setAlarms] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [modalVisible, setModalVisible] = useState(false);
+    const [modalContent, setModalContent] = useState("");
+
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 5;
+
     const navigate = useNavigate();
 
     useEffect(() => {
@@ -248,6 +277,10 @@ function AlarmSection() {
 
     if (!user) return <p>กรุณาเข้าสู่ระบบ</p>;
 
+    const handlePageChange = (page) => {
+        setCurrentPage(page);
+    };
+
     const renderAlarmItem = alarm => {
         let color = "blue";
         let text = "";
@@ -259,69 +292,114 @@ function AlarmSection() {
             color = "gold";
             text = "บันทึกสูตรของคุณเป็นรายการโปรด";
         } else if (alarm.type === "comment") {
-            color = "red";
+            color = "purple";
             text = "แสดงความคิดเห็นในสูตรของคุณ";
+        } else if (alarm.type === "alarm") {
+            color = "red";
+            text = "การแจ้งเตือน จากผู้ดูแลระบบ";
         }
 
+        const handleAlarmClick = alarm => {
+            if (alarm.type === "alarm") {
+                setModalContent(alarm.Content || "ไม่มีข้อความ");
+                setModalVisible(true);
+            } else {
+                navigate(`/recipes/${alarm.RecipeID}`);
+            }
+        };
+
         return (
-            <List.Item
-                key={`${alarm.type}-${alarm.RecipeID}-${alarm.CreatedAt}`}
-                actions={[
-                    <Button
-                        type="link"
-                        onClick={() => navigate(`/recipes/${alarm.RecipeID}`)}
-                    >
-                        ดู
-                    </Button>
-                ]}
+            <div
+                style={{
+                    backgroundColor: alarm.type === "alarm" ? "#ffe6e6" : '',
+                    borderRadius: '8px',
+                }}
+                className="full-width p-2 mb-1"
             >
-                <List.Item.Meta
-                    avatar={<Avatar src={alarm.recipeImage || "/default.png"} />}
-                    title={
-                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                            <strong>{alarm.actorUsername}</strong>
-                            <Tag color={color}>{alarm.type}</Tag>
-                            {!alarm.isRead && <Tag color="magenta">New</Tag>}
-                        </div>
-                    }
-                    description={
-                        <>
-                            <div>{text}</div>
-                            <div>สูตร: <strong>{alarm.recipeTitle}</strong></div>
-                            <div>{new Date(alarm.CreatedAt).toLocaleString("th-TH")}</div>
-                        </>
-                    }
-                />
-            </List.Item>
+                <List.Item
+                    key={`${alarm.type}-${alarm.RecipeID}-${alarm.CreatedAt}`}
+                    actions={[
+                        <Button
+                            type="link"
+                            onClick={() => handleAlarmClick(alarm)}
+                        >
+                            ดู
+                        </Button>
+                    ]}
+                >
+                    <List.Item.Meta
+                        avatar={<Avatar src={alarm.recipeImage || ""} />}
+                        title={
+                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                <strong>{alarm.actorUsername}</strong>
+                                <Tag color={color}>{alarm.type}</Tag>
+                                {!alarm.isRead && <Tag color="magenta">New</Tag>}
+                            </div>
+                        }
+                        description={
+                            <>
+                                <div>{text}</div>
+                                {alarm.recipeTitle && (
+                                    <div>สูตร: <strong>{alarm.recipeTitle}</strong></div>
+                                )}
+                                <div>{new Date(alarm.CreatedAt).toLocaleString("th-TH")}</div>
+                            </>
+                        }
+                    />
+                </List.Item>
+            </div>
         );
     };
+
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const currentAlarms = alarms.slice(startIndex, endIndex);
 
     return (
         <section
             id="alarm"
             className="alarm-section"
-            style={{ maxHeight: "100vh", overflowY: "auto" }}
+            style={{ overflowY: "auto" }}
         >
-            <h3>การแจ้งเตือน</h3>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+                <h3>การแจ้งเตือน</h3>
+                {alarms.length > pageSize && (
+                    <Pagination
+                        current={currentPage}
+                        pageSize={pageSize}
+                        total={alarms.length}
+                        onChange={handlePageChange}
+                        size="small"
+                    />
+                )}
+            </div>
             {loading ? (
                 <Spin />
-            ) : alarms.length === 0 ? (
+            ) : currentAlarms.length === 0 ? (
                 <p>คุณยังไม่มีการแจ้งเตือน</p>
             ) : (
                 <List
                     itemLayout="horizontal"
-                    dataSource={alarms}
+                    dataSource={currentAlarms}
                     renderItem={renderAlarmItem}
-                    pagination={
-                        alarms.length > 5
-                            ? { pageSize: 5, showSizeChanger: false, showQuickJumper: true }
-                            : false
-                    }
                 />
             )}
+            <Modal
+                title="ข้อความจากผู้ดูแลระบบ"
+                open={modalVisible}
+                onCancel={() => setModalVisible(false)}
+                footer={[
+                    <Button key="close" onClick={() => setModalVisible(false)}>
+                        ปิด
+                    </Button>
+                ]}
+            >
+                <p>{modalContent}</p>
+            </Modal>
         </section>
     );
 }
+
 
 
 

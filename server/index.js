@@ -2,7 +2,8 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
-const { sequelize } = require('./models');
+const { sequelize, User } = require('./models'); // make sure User is imported
+const { sendAlarmRequest } = require('./utils/alarmUser');
 
 const mainRoute = require('./routes/main');
 const userRoute = require('./routes/user');
@@ -23,6 +24,28 @@ app.use(session({
   saveUninitialized: false,
   cookie: { secure: false, maxAge: 30 * 24 * 60 * 60 * 1000, sameSite: 'lax', httpOnly: true },
 }));
+
+// ===== Auto-unban middleware ===== //
+app.use(async (req, res, next) => {
+  if (!req.session?.user) return next();
+
+  try {
+    const user = await User.findByPk(req.session.user.id);
+    if (user && user.status === 'banned' && user.stat_update <= new Date()) {
+      console.log(`Auto-unbanning user ID ${user.id}`);
+      user.status = 'normal';
+      user.stat_update = new Date();
+      await user.save();
+
+      // Optional: notify user via alarm
+      await sendAlarmRequest(user.id, 'You have been automatically unbanned.');
+    }
+  } catch (err) {
+    console.error('Error in auto-unban middleware:', err);
+  }
+
+  next();
+});
 
 // ===== Routes ===== //
 app.use('/api', mainRoute);

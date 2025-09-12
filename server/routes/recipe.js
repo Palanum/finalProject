@@ -613,21 +613,27 @@ router.get('/:id', async (req, res) => {
     // Build nested comments
     const commentsMap = new Map();
     const commentsTree = [];
-    recipe.Comments.forEach(c => {
-      const comment = {
-        id: c.CommentID,
-        content: c.Content,
-        type: c.type,
-        createdAt: c.CreatedAt,
-        user: { id: c.User.id, username: c.User.username },
-        replies: []
-      };
-      commentsMap.set(c.CommentID, comment);
-      if (c.ParentCommentID) {
-        const parent = commentsMap.get(c.ParentCommentID);
-        if (parent) parent.replies.push(comment);
-      } else commentsTree.push(comment);
-    });
+    recipe.Comments
+      .filter(c => c.type !== 'alarm')
+      .forEach(c => {
+        const comment = {
+          id: c.CommentID,
+          content: c.Content,
+          type: c.type,
+          createdAt: c.CreatedAt,
+          user: { id: c.User.id, username: c.User.username },
+          replies: []
+        };
+
+        commentsMap.set(c.CommentID, comment);
+
+        if (c.ParentCommentID) {
+          const parent = commentsMap.get(c.ParentCommentID);
+          if (parent) parent.replies.push(comment);
+        } else {
+          commentsTree.push(comment);
+        }
+      });
 
     // Build instructions with images
     const instructions = recipe.Instructions.map(i => ({
@@ -837,9 +843,9 @@ router.put('/:id/edit', upload.fields([
       }
 
       const stepImagesFromFrontend = step.stepImages || [];
-      console.log('Step images from frontend:', stepImagesFromFrontend.map(img => img.url));
+      // console.log('Step images from frontend:', stepImagesFromFrontend.map(img => img.url));
       const oldImages = instruction.InstructionImgs || [];
-      console.log('Old images:', oldImages.map(img => img.imageURL));
+      // console.log('Old images:', oldImages.map(img => img.imageURL));
       // Delete images removed in frontend
       for (const oldImg of oldImages) {
         const stillExists = stepImagesFromFrontend.find(f => f.url === oldImg.imageURL && f.isOld);
@@ -888,7 +894,6 @@ router.put('/:id/edit', upload.fields([
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
 
 
 router.post('/:id/comments', async (req, res) => {

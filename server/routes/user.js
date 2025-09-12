@@ -5,6 +5,7 @@ const router = express.Router();
 
 const sequelize = require('../db'); // Sequelize instance
 const { Sequelize, Op } = require('sequelize'); // add Op
+const { sendAlarmRequest } = require('../utils/alarmUser');
 
 const {
   Category,
@@ -253,28 +254,32 @@ router.get("/my_recipes", async (req, res) => {
 
 router.get("/alarm/count", async (req, res) => {
   if (!req.session?.user) return res.status(401).json({ error: "กรุณาเข้าสู่ระบบก่อน" });
+
   const userId = req.session.user.id;
 
   try {
     const user = await User.findByPk(userId);
     const lastView = user.last_alarm_view || new Date(0);
 
-    const likesCount = await Like.count({
-      include: { model: Recipe, where: { UserID: userId } },
-      where: { UserID: { [Op.ne]: userId }, CreatedAt: { [Op.gt]: lastView } }
-    });
+    const [likesCount, favoritesCount, commentsCount, adminAlarmsCount] = await Promise.all([
+      Like.count({
+        include: { model: Recipe, where: { UserID: userId } },
+        where: { UserID: { [Op.ne]: userId }, CreatedAt: { [Op.gt]: lastView } }
+      }),
+      Favorite.count({
+        include: { model: Recipe, where: { UserID: userId } },
+        where: { UserID: { [Op.ne]: userId }, CreatedAt: { [Op.gt]: lastView } }
+      }),
+      Comment.count({
+        include: { model: Recipe, where: { UserID: userId } },
+        where: { UserID: { [Op.ne]: userId }, CreatedAt: { [Op.gt]: lastView } }
+      }),
+      Report.count({
+        where: { reported_id: userId, reported_type: { [Op.like]: "alarm%" }, created_on: { [Op.gt]: lastView } },
+      })
+    ]);
 
-    const favoritesCount = await Favorite.count({
-      include: { model: Recipe, where: { UserID: userId } },
-      where: { UserID: { [Op.ne]: userId }, CreatedAt: { [Op.gt]: lastView } }
-    });
-
-    const commentsCount = await Comment.count({
-      include: { model: Recipe, where: { UserID: userId } },
-      where: { UserID: { [Op.ne]: userId }, CreatedAt: { [Op.gt]: lastView } }
-    });
-
-    res.json({ count: likesCount + favoritesCount + commentsCount });
+    res.json({ count: likesCount + favoritesCount + commentsCount + adminAlarmsCount });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
@@ -282,71 +287,120 @@ router.get("/alarm/count", async (req, res) => {
 });
 
 
+
 router.get("/alarm", async (req, res) => {
-  if (!req.session?.user) return res.status(401).json({ error: "กรุณาเข้าสู่ระบบก่อน" });
+  if (!req.session?.user)
+    return res.status(401).json({ error: "กรุณาเข้าสู่ระบบก่อน" });
+
   const userId = req.session.user.id;
 
   try {
     const user = await User.findByPk(userId);
     const lastView = user.last_alarm_view || new Date(0);
 
-    // Get likes, favorites, comments that happened after last view
-    const likes = await Like.findAll({
-      include: [
-        { model: Recipe, where: { UserID: userId } },
-        { model: User, attributes: ['username'] }
-      ],
-      where: { UserID: { [Op.ne]: userId } }
-    });
+    // Run queries in parallel
+    const [likes, favorites, comments, adminAlarms] = await Promise.all([
+      Like.findAll({
+        include: [
+          { model: Recipe, where: { UserID: userId }, attributes: ['Title', 'ImageURL'] },
+          { model: User, attributes: ['username'] }
+        ],
+        where: { UserID: { [Op.ne]: userId } }
+      }),
+      Favorite.findAll({
+        include: [
+          { model: Recipe, where: { UserID: userId }, attributes: ['Title', 'ImageURL'] },
+          { model: User, attributes: ['username'] }
+        ],
+        where: { UserID: { [Op.ne]: userId } }
+      }),
+      Comment.findAll({
+        include: [
+          { model: Recipe, where: { UserID: userId }, attributes: ['Title', 'ImageURL'] },
+          { model: User, attributes: ['username'] }
+        ],
+        where: { UserID: { [Op.ne]: userId }, type: 'normal' }
+      }),
+      Report.findAll({
+        where: { reported_id: userId, reported_type: { [Op.like]: "alarm%" } },
+      }),
+    ]);
 
-    const favorites = await Favorite.findAll({
-      include: [
-        { model: Recipe, where: { UserID: userId } },
-        { model: User, attributes: ['username'] }
-      ],
-      where: { UserID: { [Op.ne]: userId } }
-    });
+    // --- Extract RecipeIDs from alarm reports ---
+    const recipeIds = adminAlarms
+      .map(a => {
+        // console.dir(a)
+        if (a.reported_type.includes(",")) {
+          const parts = a.reported_type.split(",");
+          return parts[1] && !isNaN(parts[1]) ? parseInt(parts[1], 10) : null;
+        }
+        return null;
+      })
+      .filter(id => id !== null);
 
-    const comments = await Comment.findAll({
-      include: [
-        { model: Recipe, where: { UserID: userId } },
-        { model: User, attributes: ['username'] }
-      ],
-      where: { UserID: { [Op.ne]: userId } }
+    // Fetch all recipes in one go
+    const recipes = await Recipe.findAll({
+      where: { RecipeID: recipeIds },
+      attributes: ["RecipeID", "Title", "ImageURL"],
     });
+    const recipeMap = Object.fromEntries(recipes.map(r => [r.RecipeID, r]));
 
+    // Map all notifications into a single array
     const alarms = [
       ...likes.map(l => ({
         type: 'like',
-        actorUsername: l.User.username, // 🔑 uppercase U
+        actorUsername: l.User.username,
         RecipeID: l.RecipeID,
-        recipeTitle: l.Recipe.Title,
-        recipeImage: l.Recipe.ImageURL,
+        recipeTitle: l.Recipe?.Title || null,
+        recipeImage: l.Recipe?.ImageURL || null,
+        Content: null,
         CreatedAt: l.CreatedAt,
         isRead: l.CreatedAt <= lastView
       })),
       ...favorites.map(f => ({
         type: 'favorite',
-        actorUsername: f.User.username, // 🔑 uppercase U
+        actorUsername: f.User.username,
         RecipeID: f.RecipeID,
-        recipeTitle: f.Recipe.Title,
-        recipeImage: f.Recipe.ImageURL,
+        recipeTitle: f.Recipe?.Title || null,
+        recipeImage: f.Recipe?.ImageURL || null,
+        Content: null,
         CreatedAt: f.CreatedAt,
         isRead: f.CreatedAt <= lastView
       })),
       ...comments.map(c => ({
         type: 'comment',
-        actorUsername: c.User.username, // 🔑 uppercase U
+        actorUsername: c.User.username,
         RecipeID: c.RecipeID,
-        recipeTitle: c.Recipe.Title,
-        recipeImage: c.Recipe.ImageURL,
+        recipeTitle: c.Recipe?.Title || null,
+        recipeImage: c.Recipe?.ImageURL || null,
+        Content: null,
         CreatedAt: c.CreatedAt,
         isRead: c.CreatedAt <= lastView
       })),
+      ...adminAlarms.map(a => {
+        let parsedRecipeId = null;
+        if (a.reported_type.includes(",")) {
+          const parts = a.reported_type.split(",");
+          parsedRecipeId = parts[1] && !isNaN(parts[1]) ? parseInt(parts[1], 10) : null;
+        }
+
+        const recipe = parsedRecipeId ? recipeMap[parsedRecipeId] : null;
+
+        return {
+          type: "alarm",
+          actorUsername: "Admin",
+          RecipeID: parsedRecipeId,
+          recipeTitle: recipe?.Title || null,
+          recipeImage: recipe?.ImageURL || null,
+          CreatedAt: a.created_on,
+          Content: a.reason,
+          isRead: a.created_on <= lastView,
+        };
+      }),
     ];
 
-
-    alarms.sort((a, b) => b.CreatedAt - a.CreatedAt); // newest first
+    // Sort newest first
+    alarms.sort((a, b) => new Date(b.CreatedAt) - new Date(a.CreatedAt));
 
     res.json(alarms);
   } catch (err) {
@@ -369,21 +423,7 @@ router.post("/alarm/mark-read", async (req, res) => {
   }
 });
 
-const multer = require('multer');
-const cloudinary = require('../config/cloudinary');
-const storage = multer.memoryStorage();
-const upload = multer({ storage });
-
-cloudinary.uploader.upload_stream_async = function (buffer, options = {}) {
-  const streamifier = require('streamifier');
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(options, (err, result) => {
-      if (err) reject(err);
-      else resolve(result);
-    });
-    streamifier.createReadStream(buffer).pipe(stream);
-  });
-};
+const { uploadImage, upload, deleteImage } = require('../utils/cloudinary');
 
 router.post("/:id/report", upload.array("images"), async (req, res) => {
   if (!req.session?.user) return res.status(401).json({ error: "กรุณาเข้าสู่ระบบก่อน" });
@@ -391,22 +431,21 @@ router.post("/:id/report", upload.array("images"), async (req, res) => {
   const { reason, reported_id, type } = req.body;
 
   try {
-    // Create a report entry in the database
     const report = await Report.create({
       Reporter_id: reporterId,
       reason,
       reported_type: type,
-      reported_id: reported_id,
+      reported_id,
       status: 'pending',
       created_on: new Date()
     });
     const ReportID = report.ReportID;
+
     if (req.files && req.files.length > 0) {
       for (const file of req.files) {
-        const uploaded = await cloudinary.uploader.upload_stream_async(
-          file.buffer,
-          { folder: `image_project/report_image/report_${reported_id}` }
-        );
+        const uploaded = await uploadImage(file.buffer, {
+          folder: `image_project/report_image/report_${reported_id}`
+        });
 
         await ReportEvidence.create({
           ReportID,
@@ -416,6 +455,7 @@ router.post("/:id/report", upload.array("images"), async (req, res) => {
         });
       }
     }
+
     res.json({ success: true });
   } catch (err) {
     console.error(err);
@@ -423,20 +463,51 @@ router.post("/:id/report", upload.array("images"), async (req, res) => {
   }
 });
 
+router.patch('/report/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { action } = req.body; // action = 'delete' | 'resolved'
+
+  try {
+    const report = await Report.findByPk(id, {
+      include: [{ model: ReportEvidence }]
+    });
+    if (!report) return res.status(404).json({ error: 'Report not found' });
+
+    if (action === 'delete') {
+      // Delete all associated images from Cloudinary
+      for (const evidence of report.ReportEvidences) {
+        await deleteImage(evidence.file_url);
+        await evidence.destroy();
+      }
+      await report.destroy();
+      return res.json({ message: 'Report and its images deleted successfully' });
+    }
+
+    if (action === 'resolved') {
+      report.status = 'resolved'; // or 'resolved', whatever you use
+      await report.save();
+      return res.json({ message: 'Report marked as resolved', report });
+    }
+
+    res.status(400).json({ error: 'Invalid action. Use "delete" or "finish".' });
+  } catch (err) {
+    console.error('Error updating report:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+
 function requireAdmin(req, res, next) {
+  if (!req.session?.user)
+    return res.status(401).json({ error: "กรุณาเข้าสู่ระบบก่อน" });
   if (!req.session.user || req.session.user.role !== 'admin') {
-    return res.status(403).json({ error: 'Forbidden: Admins only' });
+    return res.status(403).json({ error: 'คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้' });
   }
   next();
 }
 
+/*get dashboard data*/
 router.get("/admin/data", requireAdmin, async (req, res) => {
-  if (!req.session?.user)
-    return res.status(401).json({ error: "กรุณาเข้าสู่ระบบก่อน" });
-
-  if (req.session.user.role !== 'admin')
-    return res.status(403).json({ error: "คุณไม่มีสิทธิ์เข้าถึงข้อมูลนี้" });
-
   try {
     // Total counts
     const userCount = await User.count();
@@ -495,21 +566,28 @@ router.patch('/admin/user/:id/ban', requireAdmin, async (req, res) => {
   const { action, days } = req.body; // days is used only for "ban"
 
   try {
+    const adminId = req.session.user.id;
     const user = await User.findByPk(id);
     if (!user) return res.status(404).json({ error: 'User not found' });
 
     if (action === 'ban') {
-      if (!days || isNaN(days) || days < 1) {
+      const addBanDay = Number(days);
+      if (!addBanDay || isNaN(addBanDay) || addBanDay < 1) {
         return res.status(400).json({ error: 'Invalid number of days' });
       }
       user.status = 'banned';
       // Set stat_update to the unban date
       const unbanDate = new Date();
-      unbanDate.setDate(unbanDate.getDate() + parseInt(days));
+      unbanDate.setDate(unbanDate.getDate() + addBanDay);
       user.stat_update = unbanDate;
+      const message = `You are Banned until ${unbanDate.toLocaleDateString()} by admin.`;
+      await sendAlarmRequest(user.id, message, null, adminId);
+
     } else if (action === 'unban') {
       user.status = 'normal';
       user.stat_update = new Date(); // now
+      const message = 'You have been Unbanned by admin.';
+      await sendAlarmRequest(user.id, message, null, adminId);
     } else {
       return res.status(400).json({ error: 'Invalid action' });
     }
@@ -537,23 +615,13 @@ router.delete('/admin/user/:id', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+/*sent alarm to user */
 router.post('/admin/user/:id/alarm', requireAdmin, async (req, res) => {
   const { id } = req.params;
-  const { message } = req.body;
-
+  const { recipeId, message } = req.body;
+  const adminId = req.session.user.id;
   try {
-    const user = await User.findByPk(id);
-    if (!user) return res.status(404).json({ error: 'User not found' });
-
-    // Create alarm entry in Comment table
-    const alarm = await Comment.create({
-      RecipeID: null, // not tied to a recipe
-      UserID: user.id,
-      ParentCommentID: null,
-      Content: message,
-      type: 'alarm',
-      CreatedAt: new Date(),
-    });
+    const alarm = await sendAlarmRequest(id, message, recipeId, adminId);
 
     res.json({ message: 'Alarm sent successfully', alarm });
   } catch (err) {
@@ -561,6 +629,10 @@ router.post('/admin/user/:id/alarm', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+
+
+/*set user role */
 router.patch('/admin/user/:id/role', requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { role } = req.body;
@@ -570,11 +642,15 @@ router.patch('/admin/user/:id/role', requireAdmin, async (req, res) => {
   }
 
   try {
+    const adminId = req.session.user.id;
     const user = await User.findByPk(id);
     if (!user) return res.status(404).json({ error: 'User not found' });
-
+    const oldRole = user.role;
     user.role = role;
     await user.save();
+
+    const message = `Your role has been changed from "${oldRole}" to "${role}" by admin.`;
+    await sendAlarmRequest(user.id, message, null, adminId);
 
     res.json({ message: `User role updated to ${role}`, user });
   } catch (err) {
@@ -582,6 +658,239 @@ router.patch('/admin/user/:id/role', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
+/*get recipe data */
+router.get('/admin/recipe', requireAdmin, async (req, res) => {
+  try {
+    const recipes = await Recipe.findAll({
+      attributes: ['RecipeID', 'Title', 'CreatedAt', 'UpdatedAt', 'UserID'],
+      include: [{ model: User, attributes: ['username'] }]
+    });
+    // console.log(recipes);
+    res.json(recipes);
+  } catch (err) {
+    console.error('Error fetching recipes:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.delete('/admin/recipe/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const adminId = req.session.user.id;
+  try {
+    // Find the recipe first
+    const recipe = await Recipe.findByPk(id);
+    if (!recipe) return res.status(404).json({ error: 'Recipe not found' });
+
+    // Delete main image from Cloudinary
+    if (recipe.ImageURL) {
+      await deleteImage(recipe.ImageURL);
+    }
+
+    const instructions = await Instruction.findAll({ where: { RecipeID: id } });
+
+    for (const instruction of instructions) {
+      const instructionImages = await InstructionImg.findAll({ where: { instructionID: instruction.instructionID } });
+      for (const img of instructionImages) {
+        if (img.imageURL) await deleteImage(img.imageURL);
+        await img.destroy();
+      }
+      await instruction.destroy();
+    }
+
+
+    // Delete related records
+    await Comment.destroy({ where: { RecipeID: id } });
+    await Favorite.destroy({ where: { RecipeID: id } });
+    await Like.destroy({ where: { RecipeID: id } });
+    await Ingredient.destroy({ where: { RecipeID: id } });
+    await Instruction.destroy({ where: { RecipeID: id } });
+    await RecipeCategory.destroy({ where: { RecipeID: id } });
+    await RecipeView.destroy({ where: { RecipeID: id } });
+
+
+
+    const alarmMessage = `Your recipe "${recipe.Title}" has been deleted by admin.`;
+    await sendAlarmRequest(recipe.UserID, alarmMessage, null, adminId);
+
+    // Finally, delete the recipe
+    await recipe.destroy();
+    res.json({ message: 'Recipe and its images deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting recipe:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+/*get comment data */
+router.get('/admin/comment', requireAdmin, async (req, res) => {
+  try {
+    const comments = await Comment.findAll({
+      attributes: ['CommentID', 'Content', 'CreatedAt', 'UserID', 'RecipeID', 'type', 'ParentCommentID'],
+      include: [
+        { model: User, attributes: ['id', 'username'] },
+
+      ]
+    });
+
+    // Build a map of comments by ID for quick parent lookup
+    const commentsMap = new Map();
+    comments.forEach(c => {
+      commentsMap.set(c.CommentID, c);
+    });
+
+    // Build response
+    const commentsList = comments
+      // .filter(c => c.type !== 'alarm') // skip alarms in admin list
+      .map(c => {
+        return {
+          id: c.CommentID,
+          content: c.Content,
+          type: c.type,
+          createdAt: c.CreatedAt,
+          user: { id: c.User.id, username: c.User.username },
+          parrentContent: c.ParentCommentID ? (commentsMap.get(c.ParentCommentID)?.Content || '') : '',
+        };
+      });
+
+    // console.log(commentsList);
+    res.json(commentsList);
+  } catch (err) {
+    console.error('Error fetching comments:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.delete('/admin/comment/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { isAddedRequest } = req.body;
+  const adminId = req.session.user.id;
+  try {
+    const comment = await Comment.findByPk(id);
+    if (!comment) return res.status(404).json({ error: 'Comment not found' });
+
+    // Handle replies: detach or delete them
+    await Comment.update(
+      { ParentCommentID: null },
+      { where: { ParentCommentID: id } }
+    );
+    console.log(isAddedRequest);
+    console.log(adminId);
+    console.log(comment.UserID);
+    console.log(comment.UserID !== adminId);
+    // Send alarm before deletion
+    const alarmMessage = `Your comment "${comment.Content}" has been deleted by admin.`;
+    if (!isAddedRequest //don't send alarm if already sent from report handling
+      && comment.UserID !== adminId  //if admin delete his own comment, don't send alarm
+    ) {
+      await sendAlarmRequest(comment.UserID, alarmMessage, null, adminId);
+    }
+
+    await comment.destroy();
+    res.json({ message: 'Comment deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting comment:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+router.patch('/admin/comment/:id', requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { content } = req.body;
+  try {
+    const comment = await Comment.findByPk(id);
+    if (!comment) return res.status(404).json({ error: 'Comment not found' });
+    comment.Content = content;
+    await comment.save();
+    res.json({ message: 'Comment updated successfully', comment });
+  } catch (err) {
+    console.error('Error updating comment:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// get report data
+router.get('/admin/report', requireAdmin, async (_, res) => {
+  try {
+    const reports = await Report.findAll({
+      attributes: ['ReportID', 'Reporter_id', 'reported_type', 'reported_id', 'reason', 'status', 'created_on'],
+      include: [
+        { model: User, attributes: ['id', 'username'] }, // Reporter
+        { model: ReportEvidence, attributes: ['EvidenceID', 'file_url', 'file_type', 'created_on'] }
+      ]
+    });
+
+    const result = await Promise.all(reports.map(async r => {
+      let detail = null;
+
+      switch (r.reported_type) {
+        case 'user':
+          detail = await User.findByPk(r.reported_id, { attributes: ['id', 'username', 'email'] });
+          break;
+        case 'recipe':
+          detail = await Recipe.findByPk(r.reported_id, {
+            attributes: ['RecipeID', 'Title', 'ImageURL', 'videoURL'],
+            include: [
+              { model: User, attributes: ['id', 'username'] },
+              { model: Category, attributes: ['CategoryID', 'name'] },
+              { model: Ingredient, include: [DataIngredient] },
+              { model: Instruction, include: [InstructionImg] },
+              { model: Comment, include: [User] }
+            ]
+          });
+          break;
+        case 'ingredient':
+          detail = await Ingredient.findByPk(r.reported_id, { include: [DataIngredient, Recipe] });
+          break;
+        case 'instruction':
+        case 'instruction_image':
+          detail = await Instruction.findByPk(r.reported_id, { include: [InstructionImg, Recipe] });
+          break;
+        case 'video':
+          detail = await Recipe.findByPk(r.reported_id, { attributes: ['RecipeID', 'Title', 'videoURL'] });
+          break;
+        case 'comment':
+          detail = await Comment.findByPk(r.reported_id, { include: [User, Recipe] });
+          break;
+        case 'alarm':
+        case (r.reported_type?.startsWith('alarm') && r.reported_type):
+          const recipeId = r.reported_type.split(',')[1]; // optional recipe ID
+          detail = {
+            type: 'alarm',
+            text: r.reason,
+            recipe: recipeId ? await Recipe.findByPk(recipeId) : null,
+          };
+          break;
+        default:
+          detail = { info: r.reason };
+      }
+
+      return {
+        ReportID: r.ReportID,
+        Reporter_id: r.Reporter_id,
+        Reporter_name: r.User?.username || 'Unknown',
+        reported_type: r.reported_type,
+        reported_id: r.reported_id,
+        reason: r.reason,
+        status: r.status || '',
+        created_on: r.created_on,
+        evidences: r.ReportEvidences.map(e => ({
+          EvidenceID: e.EvidenceID,
+          file_url: e.file_url,
+          file_type: e.file_type,
+          created_on: e.created_on
+        })),
+        detail
+      };
+    }));
+    console.dir(result)
+    res.json(result);
+  } catch (err) {
+    console.error('Error fetching reports:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 
 // ===== AUTH CHECK =====
 // GET /api/users/me
