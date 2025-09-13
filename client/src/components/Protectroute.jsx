@@ -1,16 +1,16 @@
-import { useContext, useRef, useState, useEffect } from "react";
+import { useContext, useRef, useEffect } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
-import { message } from "antd";
+import { App } from "antd";
 
 function ProtectedRoute({ children, messageText, requiredRole }) {
     const { user } = useContext(AuthContext);
     const location = useLocation();
     const notifiedRef = useRef(false);
+    const { message } = App.useApp();
 
     const hasAccess =
-        !requiredRole || // no role restriction
-        (user && requiredRole.includes(user.role));
+        !requiredRole || (user && requiredRole.includes(user.role));
 
     useEffect(() => {
         if (!notifiedRef.current) {
@@ -21,8 +21,7 @@ function ProtectedRoute({ children, messageText, requiredRole }) {
             }
             notifiedRef.current = true;
         }
-    }, [user, messageText, hasAccess]);
-
+    }, [user, messageText, hasAccess, message]);
 
     if (!user) {
         return <Navigate to="/login" replace state={{ from: location }} />;

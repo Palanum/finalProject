@@ -8,7 +8,7 @@ async function sendAlarmRequest(MentToUserId, text, recipeId = null, Reporter_id
     Reporter_id: Reporter_id,
     reported_id: user.id,
     reason: text,
-    reported_type: 'alarm' + `,${recipeId ? recipeId : ''}`,
+    reported_type: 'alarm' + (recipeId ? `,${recipeId}` : ''),
     status: null,
     created_on: new Date(),
   });

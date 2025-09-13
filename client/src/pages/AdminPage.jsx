@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import './AdminPage.css'
 import './Profile.css'
 import { AuthContext } from '../context/AuthContext';
-import { Button, Card, Checkbox, Col, Form, Input, message, Modal, Popconfirm, Row, Select, Space, Spin, Table, Tag } from "antd";
+import { Button, Card, Checkbox, Col, Form, Input, message, Modal, Pagination, Popconfirm, Row, Select, Space, Spin, Table, Tag } from "antd";
 const { Search } = Input;
 
 export default function AdminPage() {
@@ -256,10 +256,21 @@ function UserManagement() {
         }
     };
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 5;
+
     // Filter users
     const filteredUsers = users.filter((u) =>
         u.username.toLowerCase().includes(search.toLowerCase())
     );
+
+    // Paginate
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const currentUsers = filteredUsers.slice(startIndex, endIndex);
+
+    const handlePageChange = (page) => setCurrentPage(page);
+
 
     const [banDays, setBanDays] = useState(null);
     const [actionModal, setActionModal] = useState({
@@ -275,7 +286,6 @@ function UserManagement() {
 
 
     const columns = [
-        { title: "ID", dataIndex: "id", key: "id", width: 60 },
         { title: "Username", dataIndex: "username", key: "username" },
         { title: "Email", dataIndex: "email", key: "email" },
         {
@@ -318,25 +328,38 @@ function UserManagement() {
 
     return (
         <section id="user-management" className="User-management-section">
-            <h2>User Management</h2>
+            <div className="flex just-between align-center mb-2">
+                <h2>User Management</h2>
+                {filteredUsers.length > pageSize && (
+                    <Pagination
+                        current={currentPage}
+                        pageSize={pageSize}
+                        total={filteredUsers.length}
+                        onChange={handlePageChange}
+                        style={{ marginTop: 16, textAlign: "right" }}
+                    />
+                )}
+
+            </div>
+
             <Search
                 placeholder="Search by username"
                 allowClear
                 enterButton="Search"
-                onSearch={(value) => setSearch(value)}
+                onSearch={(value) => { setSearch(value); setCurrentPage(1); }}
                 style={{ maxWidth: 300, marginBottom: 16 }}
             />
+
+
             <Table
                 rowKey="id"
                 columns={columns}
-                dataSource={filteredUsers}
+                dataSource={currentUsers} // ✅ correct
                 loading={loading}
-                pagination={
-                    filteredUsers.length > pageSize
-                        ? { pageSize: pageSize, showSizeChanger: false, showQuickJumper: true }
-                        : false
-                }
+                className="full-width"
+                pagination={false}
             />
+
 
             {/* Alarm Modal */}
             <Modal
@@ -464,6 +487,21 @@ function RecipeManagement() {
     const [selectedRecipe, setSelectedRecipe] = useState(null);
     const [form] = Form.useForm();
 
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 5;
+
+    // Filter recipes first
+    const filteredRecipes = recipes.filter((r) =>
+        r.Title.toLowerCase().includes(search.toLowerCase())
+    );
+
+    // Paginate
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const currentRecipes = filteredRecipes.slice(startIndex, endIndex);
+
+    const handlePageChange = (page) => setCurrentPage(page);
+
     // Fetch recipes
     const fetchRecipes = async () => {
         try {
@@ -519,13 +557,7 @@ function RecipeManagement() {
     };
 
 
-    // Filter recipes by title
-    const filteredRecipes = recipes.filter((r) =>
-        r.Title.toLowerCase().includes(search.toLowerCase())
-    );
-
     const columns = [
-        { title: "ID", dataIndex: "RecipeID", key: "RecipeID", width: 60 },
         { title: "Title", dataIndex: "Title", key: "Title" },
         {
             title: "Owner",
@@ -570,21 +602,34 @@ function RecipeManagement() {
 
     return (
         <section id="recipe-management" className="Recipe-management-section">
-            <h2>Recipe Management</h2>
+            <div className="flex just-between align-center mb-2">
+                <h2>Recipe Management</h2>
+                {filteredRecipes.length > pageSize && (
+                    <Pagination
+                        current={currentPage}
+                        pageSize={pageSize}
+                        total={filteredRecipes.length}
+                        onChange={handlePageChange}
+                    />
+                )}
+            </div>
+
             <Input.Search
                 placeholder="Search by title"
                 allowClear
                 enterButton="Search"
-                onSearch={(value) => setSearch(value)}
+                onSearch={(value) => { setSearch(value); setCurrentPage(1); }}
                 style={{ maxWidth: 300, marginBottom: 16 }}
             />
+
             <Table
                 rowKey="RecipeID"
                 columns={columns}
-                dataSource={filteredRecipes}
+                dataSource={currentRecipes} // use paginated slice
                 loading={loading}
-                pagination={filteredRecipes.length > 10 ? { pageSize: 10 } : false}
+                pagination={false} // disable built-in
             />
+
 
             {/* Report Modal */}
             <Modal
@@ -618,16 +663,12 @@ function CommentManagement() {
     const [selectedComment, setSelectedComment] = useState(null);
     const [editModalVisible, setEditModalVisible] = useState(false);
     const [form] = Form.useForm();
-    const [skipAlarms, setSkipAlarms] = useState({}); // { [commentId]: true/false }
+    const [skipAlarms, setSkipAlarms] = useState({});
     const [search, setSearch] = useState("");
-    // Toggle checkbox
-    const toggleSkipAlarm = (id, checked) => {
-        setSkipAlarms((prev) => ({ ...prev, [id]: checked }));
-    };
 
-    const filteredComments = comments.filter((c) =>
-        c.content.toLowerCase().includes(search.toLowerCase()) || c.user?.username.toLowerCase().includes(search.toLowerCase())
-    );
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 5;
+
     const fetchComments = async () => {
         try {
             setLoading(true);
@@ -647,7 +688,23 @@ function CommentManagement() {
         fetchComments();
     }, []);
 
-    // Delete comment using sentData in body
+    // Filter comments
+    const filteredComments = comments.filter((c) =>
+        c.content.toLowerCase().includes(search.toLowerCase()) ||
+        c.user?.username.toLowerCase().includes(search.toLowerCase())
+    );
+
+    // Paginate
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const currentComments = filteredComments.slice(startIndex, endIndex);
+
+    const handlePageChange = (page) => setCurrentPage(page);
+
+    const toggleSkipAlarm = (id, checked) => {
+        setSkipAlarms((prev) => ({ ...prev, [id]: checked }));
+    };
+
     const handleDelete = async (id) => {
         const skipAlarm = skipAlarms[id] || false;
         try {
@@ -657,7 +714,6 @@ function CommentManagement() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ isAddedRequest: skipAlarm }),
             });
-
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Error deleting comment");
             message.success("ลบคอมเมนต์สำเร็จ");
@@ -667,15 +723,12 @@ function CommentManagement() {
         }
     };
 
-
-    // Open edit modal
     const openEditModal = (comment) => {
         setSelectedComment(comment);
         setEditModalVisible(true);
         form.setFieldsValue({ content: comment.content });
     };
 
-    // Save edited comment
     const handleEdit = async () => {
         try {
             const values = await form.validateFields();
@@ -696,46 +749,26 @@ function CommentManagement() {
     };
 
     const columns = [
-        { title: "ID", dataIndex: "id", key: "id", width: 60 },
-        {
-            title: "User",
-            dataIndex: "user",
-            key: "user",
-            render: (user) => user?.username || "Unknown",
-        },
+        { title: "User", dataIndex: "user", key: "user", render: (user) => user?.username || "Unknown" },
         {
             title: "Content",
             key: "content",
             render: (_, record) => (
                 <>
-                    {record.parrentContent && (
-                        <div >
-                            reply to: "{record.parrentContent}"
-                        </div>
-                    )}
+                    {record.parrentContent && <div>reply to: "{record.parrentContent}"</div>}
                     <div>{record.content}</div>
                 </>
-            )
+            ),
         },
-        { title: "Type", dataIndex: "type", key: "type", width: 8, render: (type) => <Tag color={type === "alarm" ? "red" : "green"}>{type}</Tag> },
-        {
-            title: "Created",
-            dataIndex: "createdAt",
-            key: "createdAt",
-            render: (date) => (date ? new Date(date).toLocaleString() : "-"),
-        },
+        { title: "Type", dataIndex: "type", key: "type", width: 80, render: (type) => <Tag color={type === "alarm" ? "red" : "green"}>{type}</Tag> },
+        { title: "Created", dataIndex: "createdAt", key: "createdAt", render: (date) => (date ? new Date(date).toLocaleString() : "-") },
         {
             title: "Actions",
             key: "actions",
             render: (_, record) => (
                 <Space direction="vertical">
-                    <Checkbox
-                        checked={!!skipAlarms[record.id]}
-                        onChange={(e) => toggleSkipAlarm(record.id, e.target.checked)}
-                    >
-                        <span style={{ fontSize: '0.85rem' }}>
-                            Don't trigger alarm
-                        </span>
+                    <Checkbox checked={!!skipAlarms[record.id]} onChange={(e) => toggleSkipAlarm(record.id, e.target.checked)}>
+                        <span style={{ fontSize: "0.85rem" }}>Don't trigger alarm</span>
                     </Checkbox>
                     <Popconfirm
                         title="คุณแน่ใจหรือไม่ที่จะลบคอมเมนต์นี้?"
@@ -743,42 +776,47 @@ function CommentManagement() {
                         okText="Yes"
                         cancelText="No"
                     >
-                        <Button type="link" danger>
-                            Delete
-                        </Button>
-
+                        <Button type="link" danger>Delete</Button>
                     </Popconfirm>
-                    {record.type === "alarm" && (
-                        <Button type="link" onClick={() => openEditModal(record)}>
-                            Edit
-                        </Button>
-                    )}
+                    {record.type === "alarm" && <Button type="link" onClick={() => openEditModal(record)}>Edit</Button>}
                 </Space>
-
             ),
         },
     ];
 
     return (
         <section id="comment-management" className="Comment-management-section">
-            <h2>Comment Management</h2>
+            <div className="flex just-between align-center mb-2">
+
+                <h2>Comment Management</h2>
+                {filteredComments.length > pageSize && (
+                    <Pagination
+                        current={currentPage}
+                        pageSize={pageSize}
+                        total={filteredComments.length}
+                        onChange={handlePageChange}
+                    />
+                )}
+            </div>
+
             <Input.Search
                 placeholder="Search by Comment or User"
                 allowClear
                 enterButton="Search"
-                onSearch={(value) => setSearch(value)}
+                onSearch={(value) => { setSearch(value); setCurrentPage(1); }}
                 style={{ maxWidth: 300, marginBottom: 16 }}
             />
 
             <Table
                 rowKey="id"
                 columns={columns}
-                dataSource={filteredComments}
+                dataSource={currentComments}
                 loading={loading}
-                pagination={filteredComments.length > 10 ? { pageSize: 10 } : false}
+                pagination={false}
             />
 
-            {/* Edit Modal */}
+
+
             <Modal
                 title={`Edit Alarm Comment #${selectedComment?.id}`}
                 open={editModalVisible}
@@ -799,6 +837,7 @@ function CommentManagement() {
         </section>
     );
 }
+
 function ReportSection() {
     const [reports, setReports] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -806,34 +845,36 @@ function ReportSection() {
     const [selectedReport, setSelectedReport] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
 
-    // Fetch reports from backend
+    const [currentPage, setCurrentPage] = useState(1);
+    const pageSize = 5;
+    // Fetch reports from backend 
+
     const fetchReports = async () => {
         try {
             setLoading(true);
             const res = await fetch("/api/users/admin/report");
             if (!res.ok) throw new Error("Failed to fetch reports");
-            const data = await res.json();
-            setReports(data);
+            const data = await res.json(); setReports(data);
         } catch (err) {
             console.error("Error fetching reports:", err);
             message.error("Failed to load reports");
-        } finally {
-            setLoading(false);
-        }
+        } finally { setLoading(false); }
     };
 
-    useEffect(() => {
-        fetchReports();
-    }, []);
+    useEffect(() => { fetchReports(); }, []);
 
-    // Filter reports
-    const filteredReports = reports.filter(
-        (r) =>
-            r.Reporter_name.toLowerCase().includes(search.toLowerCase()) ||
-            r.reported_type?.toLowerCase().includes(search.toLowerCase())
-    );
+    // Filtered reports 
+    const filteredReports = reports.filter((r) =>
+        r.Reporter_name.toLowerCase().includes(search.toLowerCase()) ||
+        r.reported_type?.toLowerCase().includes(search.toLowerCase()));
 
-    // Handle actions from backend
+    // Pagination slice 
+    const startIndex = (currentPage - 1) * pageSize;
+    const endIndex = startIndex + pageSize;
+    const currentReports = filteredReports.slice(startIndex, endIndex);
+    const handlePageChange = (page) => { setCurrentPage(page); };
+
+    // Handle actions from backend 
     const handleAction = async (id, action) => {
         try {
             const res = await fetch(`/api/users/report/${id}`, {
@@ -841,87 +882,85 @@ function ReportSection() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ action }),
             });
+
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Action failed");
-
-            message.success(data.message);
-            setModalVisible(false);
-            fetchReports();
-        } catch (err) {
-            console.error(err);
-            message.error("Failed to update report");
+            message.success(data.message); setModalVisible(false); fetchReports();
+        }
+        catch (err) {
+            console.error(err); message.error("Failed to update report");
         }
     };
-
     const columns = [
         { title: "Reporter", dataIndex: "Reporter_name", key: "Reporter_name" },
-        { title: "Reported ID", dataIndex: "reported_id", key: "reported_id" },
         {
-            title: "Type",
-            dataIndex: "reported_type",
-            key: "reported_type",
-            render: (type) => <Tag color="blue">{type}</Tag>,
-        },
+            title: "Type - Reported",
+            key: "reported_info",
+            render: (_, record) => {
+                const baseType = record.reported_type?.split(',')[0] || "unknown";
+                const colorMap = {
+                    alarm: "red",
+                    // like: "green",
+                    // comment: "purple",
+                    // favorite: "gold",
+                };
+
+                return (
+                    <div className="flex flex-column align-center gap-1">
+                        <Tag color={colorMap[baseType] || "blue"} style={{ margin: 0 }}>
+                            {baseType}
+                        </Tag>
+                        <span>{record.reported_name !== 'Alarm' ? record.reported_name : ''}</span>
+                    </div>
+                );
+            },
+        }
+        ,
         { title: "Reason", dataIndex: "reason", key: "reason" },
         {
-            title: "Status",
-            dataIndex: "status",
-            key: "status",
-            render: (status) =>
-                status ? (
-                    <Tag
-                        color={
-                            status === "pending"
-                                ? "orange"
-                                : status === "resolved"
-                                    ? "green"
-                                    : "red"
-                        }
-                    >
-                        {status}
-                    </Tag>
-                ) : null,
+            title: "Status", dataIndex: "status", key: "status",
+            render: (status) => status ? (
+                <div className="flex just-center">
+                    <Tag color={status === "pending" ?
+                        "orange" :
+                        status === "resolved" ?
+                            "green" :
+                            "red"
+                    } style={{ margin: 0 }} // remove default margin 
+                    > {status} </Tag> </div>
+            ) : null,
         },
         {
-            title: "Created On",
-            dataIndex: "created_on",
-            key: "created_on",
-            render: (date) =>
-                date ? new Date(date).toLocaleString() : "-",
+            title: "Created On", dataIndex: "created_on", key: "created_on",
+            render: (date) => date ? new Date(date).toLocaleString() : "-",
         },
         {
-            title: "Actions",
-            key: "actions",
+            title: "Actions", key: "actions",
             render: (_, record) => (
-                <>
-                    <Button
-                        type="link"
-                        disabled={!record.evidences || record.evidences.length === 0}
-                        onClick={() => {
-                            setSelectedReport(record);
-                            setModalVisible(true);
-                        }}
-                    >
-                        See Details
-                    </Button>
-                    <Button
-                        type="link"
-                        onClick={() => {
-                            setSelectedReport(record);
-                            setModalVisible(true);
-                        }}
-                    >
-                        Command
-                    </Button>
-                </>
-            ),
-        },
+                <Button
+                    type="link"
+                    onClick={() => {
+                        setSelectedReport(record);
+                        setModalVisible(true);
+                    }} >
+                    View Report
+                </Button>),
+        }
     ];
-
     return (
         <section id="report-section" className="Report-section">
-            <h2>Reports</h2>
-
+            <div className="flex just-between align-center mb-2">
+                <h2>Reports</h2>
+                {filteredReports.length > pageSize && (
+                    <Pagination
+                        current={currentPage}
+                        pageSize={pageSize}
+                        total={filteredReports.length}
+                        onChange={handlePageChange}
+                        size="small"
+                    />
+                )}
+            </div>
             <Search
                 placeholder="Search by reporter or type"
                 allowClear
@@ -929,63 +968,57 @@ function ReportSection() {
                 onSearch={(value) => setSearch(value)}
                 style={{ maxWidth: 300, marginBottom: 16 }}
             />
-
             <Table
-                rowKey="ReportId"
+                rowKey="ReportID"
                 columns={columns}
-                dataSource={filteredReports}
+                dataSource={currentReports}
                 loading={loading}
-                pagination={{ pageSize: 10, showQuickJumper: true }}
+                className="full-width"
+                pagination={false} // disable default table pagination 
             />
 
-            {/* Modal for details + commands */}
             <Modal
                 title={`Report #${selectedReport?.ReportID}`}
+
                 open={modalVisible}
-                onCancel={() => setModalVisible(false)}
-                footer={null}
-                width={700}
-            >
+                onCancel={() => setModalVisible(false)} footer={null} width={700} >
                 {selectedReport && (
                     <div>
                         <p>
-                            <b>Reporter:</b> {selectedReport.Reporter_name}
+                            <b>Reporter:</b>
+                            {selectedReport.Reporter_name}
                         </p>
                         <p>
-                            <b>Reported Type:</b> {selectedReport.reported_type}
+                            <b>Reported Type:</b>
+                            {selectedReport.reported_type}
                         </p>
                         <p>
-                            <b>Reported ID:</b> {selectedReport.reported_id}
+                            <b>Reported ID:</b>
+                            {selectedReport.reported_id}
                         </p>
                         <p>
-                            <b>Reason:</b> {selectedReport.reason}
+                            <b>Reason:</b>
+                            {selectedReport.reason}
                         </p>
                         <p>
-                            <b>Status:</b>{" "}
-                            {selectedReport.status ? <Tag
-                                color={
-                                    selectedReport.status === "pending"
-                                        ? "orange"
-                                        : selectedReport.status === "resolved"
-                                            ? "green"
-                                            : "red"
-                                }
-                            >
-                                {selectedReport.status || ""}
-                            </Tag> : ''}
-
+                            <b>Status:</b>
+                            {" "} {selectedReport.status ? (
+                                <Tag color={selectedReport.status === "pending" ?
+                                    "orange" :
+                                    selectedReport.status === "resolved" ?
+                                        "green" :
+                                        "red"}
+                                >
+                                    {selectedReport.status} </Tag>) : "—"}
                         </p>
                         <p>
-                            <b>Created On:</b>{" "}
-                            {selectedReport.created_on
-                                ? new Date(selectedReport.created_on).toLocaleString()
-                                : "-"}
+                            <b>Created On:</b>
+                            {" "} {selectedReport.created_on ? new Date(selectedReport.created_on).toLocaleString() : "-"}
                         </p>
-
-                        {/* Evidence section */}
+                        {/* 🔎 Evidence Section */}
                         <div style={{ marginTop: 16 }}>
                             <b>Evidence:</b>
-                            {selectedReport.evidences && selectedReport.evidences.length > 0 ? (
+                            {selectedReport.evidences?.length > 0 ? (
                                 <ul style={{ listStyle: "none", padding: 0 }}>
                                     {selectedReport.evidences.map((e) => {
                                         const isImage = e.file_type?.startsWith("image");
@@ -1004,44 +1037,39 @@ function ReportSection() {
                                                         }}
                                                     />
                                                 ) : (
-                                                    <a href={e.file_url} target="_blank" rel="noreferrer">
+                                                    <a
+                                                        href={e.file_url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
                                                         {e.file_type || "File"}
                                                     </a>
                                                 )}
-                                            </li>
-                                        );
+                                            </li>);
                                     })}
                                 </ul>
                             ) : (
-                                <p>No evidence provided.</p>
+                                <p style={{ color: "gray" }}>
+                                    No evidence provided for this report.
+                                </p>
                             )}
                         </div>
-
-
-                        {/* Commands */}
-                        <div style={{ marginTop: 24, textAlign: "right" }}>
-                            <Button
-                                danger
-                                onClick={() =>
-                                    handleAction(selectedReport.ReportId, "delete")
-                                }
-                            >
+                        {/* 🔎 Command Section */}
+                        <div className="mt-1 text-right">
+                            <Button danger onClick={() => handleAction(selectedReport.ReportID, "delete")} >
                                 Delete Report
                             </Button>
-                            <Button
-                                type="primary"
-                                style={{ marginLeft: 8 }}
-                                disabled={selectedReport.status === "resolved"}
-                                onClick={() =>
-                                    handleAction(selectedReport.ReportId, "resolved")
-                                }
-                            >
-                                Mark as Resolved
-                            </Button>
+                            {selectedReport.status && (
+                                <Button
+                                    type="primary"
+                                    style={{ marginLeft: 8 }}
+                                    disabled={selectedReport.status === "resolved"}
+                                    onClick={() => handleAction(selectedReport.ReportID, "resolved")}
+                                >
+                                    Mark as Resolved
+                                </Button>)}
                         </div>
-                    </div>
-                )}
+                    </div>)}
             </Modal>
-        </section>
-    );
+        </section >);
 }

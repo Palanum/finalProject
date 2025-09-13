@@ -813,83 +813,134 @@ router.patch('/admin/comment/:id', requireAdmin, async (req, res) => {
 router.get('/admin/report', requireAdmin, async (_, res) => {
   try {
     const reports = await Report.findAll({
-      attributes: ['ReportID', 'Reporter_id', 'reported_type', 'reported_id', 'reason', 'status', 'created_on'],
+      attributes: [
+        'ReportID',
+        'Reporter_id',
+        'reported_type',
+        'reported_id',
+        'reason',
+        'status',
+        'created_on'
+      ],
       include: [
         { model: User, attributes: ['id', 'username'] }, // Reporter
-        { model: ReportEvidence, attributes: ['EvidenceID', 'file_url', 'file_type', 'created_on'] }
+        {
+          model: ReportEvidence,
+          attributes: ['EvidenceID', 'file_url', 'file_type', 'created_on']
+        }
       ]
     });
 
-    const result = await Promise.all(reports.map(async r => {
-      let detail = null;
+    const result = await Promise.all(
+      reports.map(async (r) => {
+        let detail = null;
+        let report_name = null;
 
-      switch (r.reported_type) {
-        case 'user':
-          detail = await User.findByPk(r.reported_id, { attributes: ['id', 'username', 'email'] });
-          break;
-        case 'recipe':
-          detail = await Recipe.findByPk(r.reported_id, {
-            attributes: ['RecipeID', 'Title', 'ImageURL', 'videoURL'],
-            include: [
-              { model: User, attributes: ['id', 'username'] },
-              { model: Category, attributes: ['CategoryID', 'name'] },
-              { model: Ingredient, include: [DataIngredient] },
-              { model: Instruction, include: [InstructionImg] },
-              { model: Comment, include: [User] }
-            ]
-          });
-          break;
-        case 'ingredient':
-          detail = await Ingredient.findByPk(r.reported_id, { include: [DataIngredient, Recipe] });
-          break;
-        case 'instruction':
-        case 'instruction_image':
-          detail = await Instruction.findByPk(r.reported_id, { include: [InstructionImg, Recipe] });
-          break;
-        case 'video':
-          detail = await Recipe.findByPk(r.reported_id, { attributes: ['RecipeID', 'Title', 'videoURL'] });
-          break;
-        case 'comment':
-          detail = await Comment.findByPk(r.reported_id, { include: [User, Recipe] });
-          break;
-        case 'alarm':
-        case (r.reported_type?.startsWith('alarm') && r.reported_type):
-          const recipeId = r.reported_type.split(',')[1]; // optional recipe ID
-          detail = {
-            type: 'alarm',
-            text: r.reason,
-            recipe: recipeId ? await Recipe.findByPk(recipeId) : null,
-          };
-          break;
-        default:
-          detail = { info: r.reason };
-      }
+        switch (r.reported_type) {
+          case 'user':
+            detail = await User.findByPk(r.reported_id, {
+              attributes: ['id', 'username', 'email']
+            });
+            report_name = detail ? detail.username : null;
+            break;
 
-      return {
-        ReportID: r.ReportID,
-        Reporter_id: r.Reporter_id,
-        Reporter_name: r.User?.username || 'Unknown',
-        reported_type: r.reported_type,
-        reported_id: r.reported_id,
-        reason: r.reason,
-        status: r.status || '',
-        created_on: r.created_on,
-        evidences: r.ReportEvidences.map(e => ({
-          EvidenceID: e.EvidenceID,
-          file_url: e.file_url,
-          file_type: e.file_type,
-          created_on: e.created_on
-        })),
-        detail
-      };
-    }));
-    console.dir(result)
+          case 'recipe':
+            detail = await Recipe.findByPk(r.reported_id, {
+              attributes: ['RecipeID', 'Title', 'ImageURL', 'videoURL'],
+              include: [
+                { model: User, attributes: ['id', 'username'] },
+                { model: Category, attributes: ['CategoryID', 'name'] },
+                { model: Ingredient, include: [DataIngredient] },
+                { model: Instruction, include: [InstructionImg] },
+                { model: Comment, include: [User] }
+              ]
+            });
+            report_name = detail ? detail.Title : null;
+            break;
+
+          case 'ingredient':
+            detail = await Ingredient.findByPk(r.reported_id, {
+              include: [DataIngredient, Recipe]
+            });
+            report_name = detail?.DataIngredient?.name_th || `Ingredient #${r.reported_id}`;
+            break;
+
+
+          case 'instruction':
+          case 'instruction_image':
+            detail = await Instruction.findByPk(r.reported_id, {
+              include: [InstructionImg, Recipe]
+            });
+            report_name = detail ? detail.details || `Instruction ${detail.id}` : null;
+            break;
+
+          case 'video':
+            detail = await Recipe.findByPk(r.reported_id, {
+              attributes: ['RecipeID', 'Title', 'videoURL']
+            });
+            report_name = detail ? detail.Title : null;
+            break;
+
+          case 'comment':
+            detail = await Comment.findByPk(r.reported_id, { include: [User, Recipe] });
+            report_name = detail ? detail.Content : null; // adjust field name if not "content"
+            break;
+
+          case 'alarm':
+          case (r.reported_type?.startsWith('alarm') && r.reported_type):
+            const recipeId = r.reported_type.split(',')[1]; // optional recipe ID
+            let alarmRecipe = recipeId
+              ? await Recipe.findByPk(recipeId, { attributes: ['Title'] })
+              : null;
+
+            detail = {
+              type: 'alarm',
+              text: r.reason,
+              recipe: alarmRecipe,
+            };
+
+            report_name = alarmRecipe?.Title
+              ? `Alarm of Recipe: ${alarmRecipe.Title}`
+              : recipeId
+                ? 'Alarm of Recipe: deleted'
+                : 'Alarm';
+            break;
+
+
+
+          default:
+            detail = { info: r.reason };
+            report_name = r.reason;
+        }
+
+        return {
+          ReportID: r.ReportID,
+          Reporter_id: r.Reporter_id,
+          Reporter_name: r.User?.username || 'Unknown',
+          reported_type: r.reported_type,
+          reported_id: r.reported_id,
+          reported_name: report_name,
+          reason: r.reason,
+          status: r.status || '',
+          created_on: r.created_on,
+          evidences: r.ReportEvidences.map((e) => ({
+            EvidenceID: e.EvidenceID,
+            file_url: e.file_url,
+            file_type: e.file_type,
+            created_on: e.created_on
+          })),
+          detail,
+        };
+      })
+    );
+
     res.json(result);
   } catch (err) {
     console.error('Error fetching reports:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 });
+
 
 
 // ===== AUTH CHECK =====
