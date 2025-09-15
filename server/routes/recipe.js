@@ -117,16 +117,87 @@ const ingredientData = {
 
 // 0️⃣ Manual fallback for Thai-specific ingredients
 const thaiFallback = {
+  // Seasonings / condiments
   "น้ำปลา": { eng: "fish sauce", calories: 13, protein: 0.1, fat: 0, carbs: 2.7 },
   "น้ำตาล": { eng: "sugar", calories: 387, protein: 0, fat: 0, carbs: 100 },
   "ผงปรุงรส": { eng: "seasoning powder", calories: 250, protein: 3.7, fat: 0.5, carbs: 79.6 },
   "กะปิ": { eng: "shrimp paste", calories: 240, protein: 35, fat: 5, carbs: 0 },
   "ซีอิ๊ว": { eng: "soy sauce", calories: 53, protein: 5, fat: 0, carbs: 4.9 },
+  "ซีอิ๊วดำ": { eng: "dark soy sauce", calories: 50, protein: 5, fat: 0, carbs: 5 },
+  "น้ำมันพืช": { eng: "vegetable oil", calories: 884, protein: 0, fat: 100, carbs: 0 },
+  "น้ำมันมะพร้าว": { eng: "coconut oil", calories: 862, protein: 0, fat: 100, carbs: 0 },
+  "น้ำมันงา": { eng: "sesame oil", calories: 884, protein: 0, fat: 100, carbs: 0 },
+
+  // Herbs / vegetables
   "ตะไคร้": { eng: "lemongrass", calories: 99, protein: 1.8, fat: 0.5, carbs: 25.0 },
   "ข่า": { eng: "galangal", calories: 80, protein: 1.8, fat: 0.3, carbs: 18.0 },
   "ใบมะกรูด": { eng: "kaffir lime leaf", calories: 0, protein: 0, fat: 0, carbs: 0 },
   "พริกไทย": { eng: "black pepper", calories: 255, protein: 10, fat: 3.3, carbs: 64 },
+  "พริกขี้หนู": { eng: "bird's eye chili", calories: 40, protein: 2, fat: 0.5, carbs: 9 },
+  "พริกชี้ฟ้า": { eng: "red chili", calories: 31, protein: 1.5, fat: 0.3, carbs: 7 },
+  "ขมิ้น": { eng: "turmeric", calories: 312, protein: 9.7, fat: 3.3, carbs: 67.1 },
+  "มะนาว": { eng: "lime", calories: 30, protein: 0.7, fat: 0.2, carbs: 11 },
+  "มะขามเปียก": { eng: "tamarind", calories: 239, protein: 2.8, fat: 0.6, carbs: 62.5 },
+  "หอมแดง": { eng: "shallot", calories: 72, protein: 2.5, fat: 0.1, carbs: 16.8 },
+  "กระเทียม": { eng: "garlic", calories: 149, protein: 6.4, fat: 0.5, carbs: 33 },
+  "ผักชี": { eng: "coriander", calories: 23, protein: 2.1, fat: 0.5, carbs: 3.7 },
+  "ผักชีฝรั่ง": { eng: "parsley", calories: 36, protein: 3, fat: 0.8, carbs: 6 },
+  "ใบโหระพา": { eng: "thai basil", calories: 23, protein: 3, fat: 0.6, carbs: 4 },
+  "สะระแหน่": { eng: "mint", calories: 70, protein: 3.8, fat: 0.9, carbs: 15 },
+  "ตะไคร้หอม": { eng: "lemon balm", calories: 44, protein: 3, fat: 0.5, carbs: 10 },
+  "มะกรูด": { eng: "kaffir lime", calories: 30, protein: 0.8, fat: 0.2, carbs: 7 },
+  "น้ำมะนาว": { eng: "lime juice", calories: 20, protein: 0.3, fat: 0, carbs: 6 },
+
+  // Eggs
+  "ไข่เป็ด": { eng: "duck egg", calories: 123, protein: 19.8, fat: 4.25, carbs: 0 },
+  "ไข่ไก่": { eng: "chicken egg", calories: 68, protein: 5.5, fat: 4.8, carbs: 0.6 },
+  "ไข่": { eng: "egg", calories: 68, protein: 5.5, fat: 4.8, carbs: 0 },
+
+  // Thai curry pastes
+  "พริกแกงแดง": { eng: "red curry paste", calories: 200, protein: 4, fat: 10, carbs: 20 },
+  "พริกแกงเขียว": { eng: "green curry paste", calories: 180, protein: 3, fat: 9, carbs: 18 },
+  "พริกแกงเผ็ด": { eng: "spicy curry paste", calories: 190, protein: 3.5, fat: 9, carbs: 19 },
+
+  // Dried seafood
+  "กุ้งแห้ง": { eng: "dried shrimp", calories: 200, protein: 45, fat: 2, carbs: 3 },
+  "ปลาหมึกแห้ง": { eng: "dried squid", calories: 250, protein: 50, fat: 2, carbs: 4 },
+  "ปลาแห้ง": { eng: "dried fish", calories: 250, protein: 45, fat: 5, carbs: 0 },
+
+  // Fermented products
+  "ปลาร้า": { eng: "fermented fish", calories: 120, protein: 20, fat: 3, carbs: 2 },
+  "เต้าเจี้ยว": { eng: "fermented soybean paste", calories: 199, protein: 12, fat: 6, carbs: 22 },
+  "น้ำเต้าเจี้ยว": { eng: "fermented soybean sauce", calories: 45, protein: 5, fat: 0, carbs: 4 },
+  // Thai vegetables
+  "ผักบุ้ง": { eng: "morning glory", calories: 19, protein: 3, fat: 0.2, carbs: 3.1 },
+  "ผักกาดขาว": { eng: "chinese cabbage", calories: 12, protein: 1.2, fat: 0.1, carbs: 2 },
+  "ผักกาดหอม": { eng: "lettuce", calories: 15, protein: 1.4, fat: 0.2, carbs: 2.9 },
+  "ผักโขม": { eng: "spinach", calories: 23, protein: 2.9, fat: 0.4, carbs: 3.6 },
+  "คะน้า": { eng: "chinese kale", calories: 28, protein: 3, fat: 0.3, carbs: 5 },
+  "มะเขือเปราะ": { eng: "thai eggplant", calories: 24, protein: 1, fat: 0.2, carbs: 5 },
+  "มะเขือม่วง": { eng: "eggplant", calories: 25, protein: 1, fat: 0.2, carbs: 6 },
+  "มะเขือยาว": { eng: "long eggplant", calories: 25, protein: 1, fat: 0.2, carbs: 6 },
+  "แตงกวา": { eng: "cucumber", calories: 16, protein: 0.7, fat: 0.1, carbs: 3.6 },
+  "ฟักทอง": { eng: "pumpkin", calories: 26, protein: 1, fat: 0.1, carbs: 6 },
+  "แครอท": { eng: "carrot", calories: 41, protein: 0.9, fat: 0.2, carbs: 10 },
+  "ผักกวางตุ้ง": { eng: "choy sum", calories: 19, protein: 2, fat: 0.2, carbs: 3 },
+  "รากผักชี": { eng: "cilantro root", calories: 23, protein: 2, fat: 0.2, carbs: 4 },
+
+  // Thai fruits
+  "มะละกอ": { eng: "papaya", calories: 43, protein: 0.5, fat: 0.1, carbs: 11 },
+  "มะม่วง": { eng: "mango", calories: 60, protein: 0.8, fat: 0.4, carbs: 15 },
+  "แตงโม": { eng: "watermelon", calories: 30, protein: 0.6, fat: 0.2, carbs: 8 },
+  "มะเขือเทศ": { eng: "tomato", calories: 18, protein: 0.9, fat: 0.2, carbs: 3.9 },
+  "ฟัก": { eng: "winter melon", calories: 13, protein: 0.4, fat: 0.2, carbs: 3 },
+  "ฟักอ่อน": { eng: "young winter melon", calories: 15, protein: 0.5, fat: 0.2, carbs: 3.2 },
+  "มะระ": { eng: "bitter melon", calories: 17, protein: 1, fat: 0.2, carbs: 3.7 },
+
+  // Herbs for flavor
+  "ผักชี": { eng: "coriander", calories: 23, protein: 2.1, fat: 0.5, carbs: 3.7 },
+  "ผักชีฝรั่ง": { eng: "parsley", calories: 36, protein: 3, fat: 0.8, carbs: 6 },
+  "ใบโหระพา": { eng: "thai basil", calories: 23, protein: 3, fat: 0.6, carbs: 4 },
+  "สะระแหน่": { eng: "mint", calories: 70, protein: 3.8, fat: 0.9, carbs: 15 },
 };
+
 // Sort keys by length descending for correct compound matching
 const sortedIngredientKeys = Object.keys(ingredientData).sort((a, b) => b.length - a.length);
 
