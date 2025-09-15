@@ -139,6 +139,7 @@ function MyRecipeSection() {
     const { user } = useContext(AuthContext);
     const [myRecipes, setMyRecipes] = useState([]);
     const [currentPage, setCurrentPage] = useState(1);
+    const [deletingId, setDeletingId] = useState(null);
     const pageSize = 5;
     const navigate = useNavigate();
 
@@ -154,17 +155,22 @@ function MyRecipeSection() {
     if (!user) return <p>กรุณาเข้าสู่ระบบ</p>;
 
     const handleDelete = async (recipeId) => {
+        setDeletingId(recipeId);
         try {
-            const res = await fetch(`/api/recipes/${recipeId}`, { method: "DELETE" });
+            const res = await fetch(`/api/users/recipe/${recipeId}`, { method: "DELETE" });
+            const data = await res.json();
+
             if (res.ok) {
-                message.success("ลบสูตรเรียบร้อยแล้ว");
+                message.success(data.message || "ลบสูตรเรียบร้อยแล้ว");
                 setMyRecipes(myRecipes.filter((r) => r.RecipeID !== recipeId));
             } else {
-                message.error("ลบสูตรไม่สำเร็จ");
+                message.error(data.error || "ลบสูตรไม่สำเร็จ");
             }
         } catch (err) {
             console.error(err);
             message.error("เกิดข้อผิดพลาด");
+        } finally {
+            setDeletingId(null);
         }
     };
 
@@ -199,12 +205,10 @@ function MyRecipeSection() {
                         <List.Item
                             key={recipe.RecipeID}
                             style={{
-                                cursor: "pointer",
                                 padding: "16px",
                                 borderBottom: "1px solid #f0f0f0",
                                 transition: "background 0.2s",
                             }}
-                            onClick={() => navigate(`/recipes/${recipe.RecipeID}`)}
                             onMouseEnter={(e) => (e.currentTarget.style.background = "#fafafa")}
                             onMouseLeave={(e) => (e.currentTarget.style.background = "white")}
                             actions={[
@@ -230,17 +234,45 @@ function MyRecipeSection() {
                                         okText="ใช่"
                                         cancelText="ยกเลิก"
                                     >
-                                        <Button type="danger" icon={<DeleteOutlined />} />
+                                        <Button
+                                            type="danger"
+                                            icon={<DeleteOutlined />}
+                                            loading={deletingId === recipe.RecipeID}
+                                        />
+
                                     </Popconfirm>
                                 </Space>,
                             ]}
                         >
                             <List.Item.Meta
-                                avatar={<Avatar shape="square" size={100} src={recipe.ImageURL || "/default.png"} />}
-                                title={<div style={{ fontWeight: "bold", fontSize: "16px" }}>{recipe.Title}</div>}
-                                description={<span>เวลา {recipe.time} นาที</span>}
+                                avatar={
+                                    <Avatar
+                                        shape="square"
+                                        size={100}
+                                        src={recipe.ImageURL || "/default.png"}
+                                        style={{ cursor: "pointer" }}
+                                        onClick={() => navigate(`/recipes/${recipe.RecipeID}`)}
+                                    />
+                                }
+                                title={
+                                    <div
+                                        style={{ fontWeight: "bold", fontSize: "16px", cursor: "pointer" }}
+                                        onClick={() => navigate(`/recipes/${recipe.RecipeID}`)}
+                                    >
+                                        {recipe.Title}
+                                    </div>
+                                }
+                                description={
+                                    <span
+                                        style={{ cursor: "pointer" }}
+                                        onClick={() => navigate(`/recipes/${recipe.RecipeID}`)}
+                                    >
+                                        เวลา {recipe.time} นาที
+                                    </span>}
                             />
+
                         </List.Item>
+
                     )}
                 />
             )}

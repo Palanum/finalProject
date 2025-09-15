@@ -104,6 +104,7 @@ router.post('/login', async (req, res) => {
       username: user.username,
       email: user.email,
       role: user.role,
+      stat_update: user.stat_update,
       status: user.status
     };
 
@@ -248,6 +249,69 @@ router.get("/my_recipes", async (req, res) => {
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
+  }
+});
+
+const { uploadImage, upload, deleteImage } = require('../utils/cloudinary');
+
+async function requireOwner(req, res, next) {
+  if (!req.session?.user) {
+    return res.status(401).json({ error: "กรุณาเข้าสู่ระบบก่อน" });
+  }
+
+  const userId = req.session.user.id;
+  const recipeId = req.params.id;
+
+  try {
+    const recipe = await Recipe.findByPk(recipeId);
+    if (!recipe) return res.status(404).json({ error: "ไม่พบสูตรอาหาร" });
+
+    if (recipe.UserID !== userId) {
+      return res.status(403).json({ error: "คุณไม่ได้เป็นเจ้าของสูตรนี้" });
+    }
+
+    req.recipe = recipe; // store recipe for next middleware
+    next();
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "เกิดข้อผิดพลาด" });
+  }
+}
+
+router.delete('/recipe/:id', requireOwner, async (req, res) => {
+  const recipe = req.recipe; // already fetched
+  const id = recipe.RecipeID;
+
+  try {
+    // Delete main image
+    if (recipe.ImageURL) await deleteImage(recipe.ImageURL);
+
+    const instructions = await Instruction.findAll({ where: { RecipeID: id } });
+
+    for (const instruction of instructions) {
+      const instructionImages = await InstructionImg.findAll({ where: { instructionID: instruction.instructionID } });
+      for (const img of instructionImages) {
+        if (img.imageURL) await deleteImage(img.imageURL);
+        await img.destroy();
+      }
+      await instruction.destroy();
+    }
+
+    // Delete related records
+    await Promise.all([
+      Comment.destroy({ where: { RecipeID: id } }),
+      Favorite.destroy({ where: { RecipeID: id } }),
+      Like.destroy({ where: { RecipeID: id } }),
+      Ingredient.destroy({ where: { RecipeID: id } }),
+      RecipeCategory.destroy({ where: { RecipeID: id } }),
+      RecipeView.destroy({ where: { RecipeID: id } })
+    ]);
+
+    await recipe.destroy();
+    res.json({ message: 'Recipe and its images deleted successfully' });
+  } catch (err) {
+    console.error('Error deleting recipe:', err);
+    res.status(500).json({ error: 'Server error' });
   }
 });
 
@@ -423,7 +487,7 @@ router.post("/alarm/mark-read", async (req, res) => {
   }
 });
 
-const { uploadImage, upload, deleteImage } = require('../utils/cloudinary');
+
 
 router.post("/:id/report", upload.array("images"), async (req, res) => {
   if (!req.session?.user) return res.status(401).json({ error: "กรุณาเข้าสู่ระบบก่อน" });
@@ -505,6 +569,8 @@ function requireAdmin(req, res, next) {
   }
   next();
 }
+
+
 
 /*get dashboard data*/
 router.get("/admin/data", requireAdmin, async (req, res) => {
@@ -629,8 +695,6 @@ router.post('/admin/user/:id/alarm', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
-
-
 
 /*set user role */
 router.patch('/admin/user/:id/role', requireAdmin, async (req, res) => {
@@ -905,8 +969,6 @@ router.get('/admin/report', requireAdmin, async (_, res) => {
                 ? 'Alarm of Recipe: deleted'
                 : 'Alarm';
             break;
-
-
 
           default:
             detail = { info: r.reason };

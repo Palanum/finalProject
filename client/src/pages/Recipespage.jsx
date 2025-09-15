@@ -10,6 +10,7 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 import { fas } from '@fortawesome/free-solid-svg-icons'
 import { far } from '@fortawesome/free-regular-svg-icons'
 import { fab } from '@fortawesome/free-brands-svg-icons'
+import RestrictedContent from "../components/RestrictedContent";
 
 library.add(fas, far, fab)
 export default function Recipespage() {
@@ -171,6 +172,13 @@ export default function Recipespage() {
             message.warning("Please login to post a comment");
             return;
         }
+        if (user.status === "banned") {
+            const dateUnban = user.stat_update ? new Date(user.stat_update).toLocaleString() : null;
+            message.error(
+                `⚠️ Your account is banned and cannot post comments${dateUnban ? "\nUntil: " + dateUnban : ""}`
+            );
+            return;
+        }
         if (!newComment.trim()) return;
 
         try {
@@ -237,6 +245,13 @@ export default function Recipespage() {
     const handleOpenReport = () => {
         if (!user) {
             message.warning("Please login to report");
+            return;
+        }
+        if (user.status === "banned") {
+            const dateUnban = user.stat_update ? new Date(user.stat_update).toLocaleString() : null;
+            message.error(
+                `⚠️ Your account is banned and cannot Report ${dateUnban ? "\nUntil: " + dateUnban : ""}`
+            );
             return;
         }
         setReportModalVisible(true);

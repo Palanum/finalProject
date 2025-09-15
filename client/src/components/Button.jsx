@@ -30,9 +30,10 @@ function Sharebtn() {
   const location = useLocation();
   const { user } = useContext(AuthContext);
   // console.log('Current location in Sharebtn:', location);
+  const currentPath = location.pathname + location.search;
   const handleShare = () => {
     if (user) {
-      navigate('/share');
+      navigate('/share', { state: { from: currentPath } });
     } else {
       navigate('/login', { state: { from: { pathname: '/share' } } });
     }

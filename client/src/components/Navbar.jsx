@@ -1,7 +1,7 @@
 import './NavBar.css';
 import logo from '../assets/images/rezcook_logo.png';
 import { Loginbtn, Sharebtn } from './Button';
-import { Link } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useEffect, useState, useRef, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
 
@@ -21,7 +21,9 @@ export default function NavBar({ isLoggedIn }) {
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
   const [count, refreshCount] = useUnreadAlarms();
-
+  const location = useLocation();
+  const navigate = useNavigate();
+  const currentPath = location.pathname + location.search;
   useEffect(() => {
     const handleScroll = () => {
       const currentScrollY = window.scrollY;
@@ -58,7 +60,9 @@ export default function NavBar({ isLoggedIn }) {
         </div>
         {/* Right group */}
         <ul className="nav-group nav-right">
-          <li><Sharebtn /></li>
+          <li><Sharebtn
+
+          /></li>
           {isLoggedIn ? (
             <>
               <li>

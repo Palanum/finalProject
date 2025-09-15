@@ -27,6 +27,7 @@ const sequelize = require('../db'); // ✅ correct
 const { Op } = require('sequelize');
 
 const USDA_API_KEY = process.env.USDA_API_KEY;
+
 const ingredientData = {
   "ข้าวเหนียว": { eng: "sticky rice", synonyms: ["glutinous rice", "sweet rice", "mochi rice"] },
   "ข้าวกล้อง": { eng: "brown rice", synonyms: ["whole grain rice"] },
@@ -92,6 +93,8 @@ const ingredientData = {
   "กวาง": { eng: "venison", synonyms: [] },
   "กระต่าย": { eng: "rabbit", synonyms: [] },
   "ไก่งวง": { eng: "turkey", synonyms: ["breast", "thigh", "wing"] },
+  "ไข่เป็ด": { eng: "duck egg", synonyms: ["duck eggs"] },
+  "ไข่ไก่": { eng: "chicken egg", synonyms: ["chicken eggs"] },
   "ไข่": { eng: "egg", synonyms: ["eggs"] },
   "ปลา": { eng: "fish", synonyms: ["fillet", "whole", "steak"] },
   "กุ้ง": { eng: "shrimp", synonyms: ["whole", "peeled"] },
@@ -112,19 +115,38 @@ const ingredientData = {
   "น้ำมะนาว": { eng: "lime juice", synonyms: ["lemon juice"] }
 };
 
+// 0️⃣ Manual fallback for Thai-specific ingredients
+const thaiFallback = {
+  "น้ำปลา": { eng: "fish sauce", calories: 13, protein: 0.1, fat: 0, carbs: 2.7 },
+  "น้ำตาล": { eng: "sugar", calories: 387, protein: 0, fat: 0, carbs: 100 },
+  "ผงปรุงรส": { eng: "seasoning powder", calories: 250, protein: 3.7, fat: 0.5, carbs: 79.6 },
+  "กะปิ": { eng: "shrimp paste", calories: 240, protein: 35, fat: 5, carbs: 0 },
+  "ซีอิ๊ว": { eng: "soy sauce", calories: 53, protein: 5, fat: 0, carbs: 4.9 },
+  "ตะไคร้": { eng: "lemongrass", calories: 99, protein: 1.8, fat: 0.5, carbs: 25.0 },
+  "ข่า": { eng: "galangal", calories: 80, protein: 1.8, fat: 0.3, carbs: 18.0 },
+  "ใบมะกรูด": { eng: "kaffir lime leaf", calories: 0, protein: 0, fat: 0, carbs: 0 },
+  "พริกไทย": { eng: "black pepper", calories: 255, protein: 10, fat: 3.3, carbs: 64 },
+};
+// Sort keys by length descending for correct compound matching
+const sortedIngredientKeys = Object.keys(ingredientData).sort((a, b) => b.length - a.length);
 
+// Helper: check if ingredient is common raw food
+function isCommonRawFood(thaiName) {
+  return ingredientData[thaiName] !== undefined;
+}
 
+// 2️⃣ Map Thai -> English with compound handling
 async function mapIngredient(thaiInput) {
   thaiInput = thaiInput.trim();
 
-  // only check exact Thai names
-  for (const key in ingredientData) {
+  // Match longest key first
+  for (const key of sortedIngredientKeys) {
     if (thaiInput.includes(key)) {
       return ingredientData[key].eng;
     }
   }
 
-  // fallback: use translation API if no Thai match
+  // Fallback: use translation API
   return await libreTranslateThaiToEng(thaiInput);
 }
 
@@ -208,65 +230,74 @@ async function searchUsdaByName(engName, strict = true) {
 
 
 
-async function findOrCreateIngredient(thaiName, transaction) {
-  // 1️⃣ Check DB first
-  let dataIng = await DataIngredient.findOne({
-    where: { name_th: thaiName },
-    transaction,
-  });
-  if (dataIng) return dataIng;
 
-  // 2️⃣ Map Thai → English using fuzzy matching
+
+async function findOrCreateIngredient(thaiName, transaction) {
+  thaiName = thaiName.trim();
+
+  // Manual fallback for seasonings
+  if (thaiFallback[thaiName]) {
+    const fallback = thaiFallback[thaiName];
+    console.log(`Using manual fallback for "${thaiName}" -> "${fallback.eng}"`);
+    return await DataIngredient.create({
+      name_th: thaiName,
+      name_eng: fallback.eng,
+      calories: fallback.calories,
+      protein: fallback.protein,
+      fat: fallback.fat,
+      carbs: fallback.carbs,
+      source: 'manual',
+      is_verified: true,
+    }, { transaction });
+  }
+
+  // Check existing DB
+  let dataIng = await DataIngredient.findOne({ where: { name_th: thaiName }, transaction });
+  if (dataIng) {
+    console.log(`Found existing ingredient in DB: ${thaiName}`);
+    return dataIng;
+  }
+
+  // Map Thai -> English
   const engName = await mapIngredient(thaiName);
   console.log(`Mapped "${thaiName}" -> "${engName}"`);
 
-  // 3️⃣ Search USDA strictly first
-  let foods = await searchUsdaByName(engName, true);
-  let rawFoods = filterRawFoods(foods);
+  // If it's a common raw food, try USDA enrichment
+  let nutrition = { calories: 0, protein: 0, fat: 0, carbs: 0 };
+  let chosenFood = null;
 
-  // 4️⃣ Relax search if no raw food found
-  if (!rawFoods.length) {
-    console.log('No raw foods found in strict search, relaxing...');
-    foods = await searchUsdaByName(engName, false);
-    rawFoods = filterRawFoods(foods);
+  if (isCommonRawFood(thaiName)) {
+    let foods = await searchUsdaByName(engName, true);
+    let rawFoods = filterRawFoods(foods);
+
+    if (!rawFoods.length) {
+      foods = await searchUsdaByName(engName, false);
+      rawFoods = filterRawFoods(foods);
+    }
+
+    if (rawFoods.length) {
+      chosenFood = chooseBestFood(rawFoods, engName);
+      nutrition = extractNutrition(chosenFood);
+      console.log(`USDA enriched nutrition: ${chosenFood.description} (FDC ID: ${chosenFood.fdcId})`);
+    }
   }
 
-  console.log('USDA raw foods found:');
-  rawFoods.forEach(f => {
-    console.log({
-      fdcId: f.fdcId,
-      description: f.description,
-      scientificName: f.scientificName,
-      foodCategory: f.foodCategory,
-      calories: f.foodNutrients?.find(n => [1008].includes(n.nutrientId))?.value,
-      protein: f.foodNutrients?.find(n => [1003].includes(n.nutrientId))?.value,
-      fat: f.foodNutrients?.find(n => [1004].includes(n.nutrientId))?.value,
-      carbs: f.foodNutrients?.find(n => [1005].includes(n.nutrientId))?.value,
-    });
-  });
-
-  if (!rawFoods.length) throw new Error('No reliable raw USDA food found');
-
-  // 5️⃣ Take first raw food
-  const chosenFood = chooseBestFood(rawFoods, engName);
-  const nutrition = extractNutrition(chosenFood);
-  console.log(`Chosen food: ${chosenFood.description} (FDC ID: ${chosenFood.fdcId})`);
-
-  // 6️⃣ Insert into DB with Sequelize
+  // Insert into DB
   dataIng = await DataIngredient.create({
-    name_eng: engName,
     name_th: thaiName,
+    name_eng: engName,
     calories: nutrition.calories,
     protein: nutrition.protein,
     fat: nutrition.fat,
     carbs: nutrition.carbs,
-    external_id: chosenFood.fdcId,
-    source: 'USDA',
-    is_verified: false,
+    external_id: chosenFood?.fdcId || null,
+    source: chosenFood ? 'USDA' : 'local',
+    is_verified: !!chosenFood,
   }, { transaction });
 
   return dataIng;
 }
+
 
 
 
@@ -282,16 +313,6 @@ cloudinary.uploader.upload_stream_async = function (buffer, options = {}) {
   });
 };
 
-
-// async function findOrCreateCategory(conn, categoryName) {
-//   if (!categoryName) return null;
-
-//   const [rows] = await conn.query('SELECT CategoryID FROM categories WHERE Name = ?', [categoryName]);
-//   if (rows.length > 0) return rows[0].CategoryID;
-
-//   const [result] = await conn.query('INSERT INTO categories (Name) VALUES (?)', [categoryName]);
-//   return result.insertId;
-// }
 
 router.post('/addnew', upload.fields([
   { name: 'recipeImage', maxCount: 1 },

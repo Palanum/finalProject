@@ -6,6 +6,7 @@ import { AuthContext } from './context/AuthContext';
 
 import NavBar from './components/Navbar';
 import Footer from './components/Footer';
+import RestrictedContent from './components/RestrictedContent';
 
 import './App.css';
 
@@ -48,7 +49,9 @@ function App() {
           path="/share"
           element={
             <ProtectedRoute messageText="You must be logged in to share recipes">
-              <Sharepage />
+              <RestrictedContent>
+                <Sharepage />
+              </RestrictedContent>
             </ProtectedRoute>
           }
         />
