@@ -362,8 +362,10 @@ textarea:focus {
 
 .card-cover {
   height: 180px;
-  object-fit: cover;
+  /* fixed height so all cards align */
+  object-fit: contain;
 }
+
 
 .card-tag {
   padding: .2rem .7rem;

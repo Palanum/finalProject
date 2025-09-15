@@ -607,40 +607,12 @@ export default function Recipespage() {
             )}
             <div ref={commentRef} style={{ marginTop: 32 }}>
                 <Title level={4}>Comments</Title>
-                <List
-                    dataSource={recipe.comments}
-                    renderItem={comment => (
-                        <List.Item>
-                            <div>
-                                <Text strong>{comment.user.username}:</Text> {comment.content}
-                                <Button
-                                    type="link"
-                                    size="small"
-                                    onClick={() => setReplyToCommentId(comment.id)}
-                                    style={{ marginLeft: 8 }}
-                                >
-                                    Reply
-                                </Button>
-
-                                {comment.replies && comment.replies.length > 0 && (
-                                    <div style={{ marginLeft: 20, marginTop: 4 }}>
-                                        {comment.replies.map(reply => (
-                                            <div key={reply.id}>
-                                                <Text strong>{reply.user.username}:</Text> {reply.content}
-                                            </div>
-                                        ))}
-                                    </div>
-                                )}
-                            </div>
-                        </List.Item>
-                    )}
-                />
-
-                <div style={{ marginTop: 16, display: "flex", gap: 8 }}>
+                <CommentThread comments={recipe.comments} onReply={setReplyToCommentId} />
+                <div className="flex align-center gap-1 mt-1">
                     {replyToCommentId && (() => {
                         const parentComment = findCommentById(recipe.comments, replyToCommentId);
                         if (parentComment) {
-                            return <Text type="secondary">Replying to comment of {parentComment.user.username}</Text>;
+                            return <Text type="secondary">Replying to comment of {parentComment.user.username || "deleted User"}</Text>;
                         }
                         return null;
                     })()}
@@ -658,3 +630,77 @@ export default function Recipespage() {
         </Card>
     );
 }
+
+function CommentThread({ comments, onReply, level = 0 }) {
+    return (
+        <div>
+            {comments.map((comment) => (
+                <CommentItem
+                    key={comment.id}
+                    comment={comment}
+                    onReply={onReply}
+                    level={level}
+                />
+            ))}
+        </div>
+    );
+}
+
+function CommentItem({ comment, onReply, level }) {
+    const [collapsed, setCollapsed] = useState(false);
+
+    return (
+        <div
+            style={{
+                marginLeft: level * 20,
+                borderLeft: level > 0 ? "2px solid #ddd" : "none",
+                paddingLeft: 8,
+                marginTop: 8,
+            }}
+        >
+            <div
+                className="flex align-center gap-1"
+            >
+                <Text strong={!comment.user.username.includes("deleted")}>
+                    {comment.user.username || "Deleted User"}:
+                </Text>
+                <div style={{ fontSize: level > 0 ? "0.9em" : "1em" }}>
+                    {comment.content}
+                </div>
+                <Button
+                    type="link"
+                    size="small"
+                    onClick={() => onReply(comment.id)}
+                    style={{ padding: 0 }}
+                >
+                    Reply
+                </Button>
+            </div>
+            {comment.replies?.length > 0 && (
+                <div style={{ marginTop: 4 }}>
+                    <Button
+                        type="link"
+                        size="small"
+                        onClick={() => setCollapsed((prev) => !prev)}
+                        style={{ padding: 0 }}
+                    >
+                        {collapsed
+                            ? `Show ${comment.replies.length} repl${comment.replies.length > 1 ? "ies" : "y"
+                            }`
+                            : "Hide replies"}
+                    </Button>
+                </div>
+            )}
+
+            {!collapsed && comment.replies?.length > 0 && (
+                <CommentThread
+                    comments={comment.replies}
+                    onReply={onReply}
+                    level={level + 1}
+                />
+            )}
+        </div>
+    );
+}
+
+

@@ -673,6 +673,10 @@ router.patch('/admin/user/:id/ban', requireAdmin, async (req, res) => {
 router.delete('/admin/user/:id', requireAdmin, async (req, res) => {
   const { id } = req.params;
   try {
+
+    await Favorite.destroy({ where: { UserID: id } });
+    await Like.destroy({ where: { UserID: id } });
+
     const deleted = await User.destroy({ where: { id } });
     if (!deleted) return res.status(404).json({ error: 'User not found' });
     res.json({ message: 'User deleted successfully' });

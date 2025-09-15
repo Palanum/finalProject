@@ -37,7 +37,6 @@ function Home() {
 
             >
               <div className="full-height flex">
-
                 <Card
                   hoverable
                   className="flex flex-column flex-1"

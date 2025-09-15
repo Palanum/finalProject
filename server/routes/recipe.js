@@ -306,6 +306,13 @@ async function searchUsdaByName(engName, strict = true) {
 async function findOrCreateIngredient(thaiName, transaction) {
   thaiName = thaiName.trim();
 
+  // Check existing DB
+  let dataIng = await DataIngredient.findOne({ where: { name_th: thaiName }, transaction });
+  if (dataIng) {
+    console.log(`Found existing ingredient in DB: ${thaiName}`);
+    return dataIng;
+  }
+
   // Manual fallback for seasonings
   if (thaiFallback[thaiName]) {
     const fallback = thaiFallback[thaiName];
@@ -322,12 +329,7 @@ async function findOrCreateIngredient(thaiName, transaction) {
     }, { transaction });
   }
 
-  // Check existing DB
-  let dataIng = await DataIngredient.findOne({ where: { name_th: thaiName }, transaction });
-  if (dataIng) {
-    console.log(`Found existing ingredient in DB: ${thaiName}`);
-    return dataIng;
-  }
+
 
   // Map Thai -> English
   const engName = await mapIngredient(thaiName);
@@ -702,30 +704,44 @@ router.get('/:id', async (req, res) => {
 
     if (!recipe) return res.status(404).json({ error: "Recipe not found" });
 
-    // Build nested comments
+    // --- Build nested comments (safe two-pass) ---
     const commentsMap = new Map();
     const commentsTree = [];
+
+    // 1. First pass → create comment objects
     recipe.Comments
       .filter(c => c.type !== 'alarm')
       .forEach(c => {
-        const comment = {
+        commentsMap.set(c.CommentID, {
           id: c.CommentID,
           content: c.Content,
           type: c.type,
           createdAt: c.CreatedAt,
-          user: { id: c.User.id, username: c.User.username },
+          user: c.User
+            ? { id: c.User.id, username: c.User.username }
+            : { id: null, username: "deleted User" },
           replies: []
-        };
+        });
+      });
 
-        commentsMap.set(c.CommentID, comment);
-
+    // 2. Second pass → link children to parents
+    recipe.Comments
+      .filter(c => c.type !== 'alarm')
+      .forEach(c => {
+        const comment = commentsMap.get(c.CommentID);
         if (c.ParentCommentID) {
           const parent = commentsMap.get(c.ParentCommentID);
-          if (parent) parent.replies.push(comment);
+          if (parent) {
+            parent.replies.push(comment);
+          } else {
+            // Parent deleted or missing → treat as root-level
+            commentsTree.push(comment);
+          }
         } else {
           commentsTree.push(comment);
         }
       });
+
 
     // Build instructions with images
     const instructions = recipe.Instructions.map(i => ({
