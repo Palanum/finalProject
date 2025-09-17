@@ -3,7 +3,7 @@ import './Home.css';  // CSS file for styling
 import { Normalbtn, Sharebtn } from '../components/Button';
 import { Row, Col, Card, Tag } from "antd";
 
-function Home() {
+export default function Home() {
   const [textSearch, setTextSearch] = useState('');
   const { Meta } = Card;
   const [recipes, setRecipes] = useState([]);
@@ -80,5 +80,3 @@ function Home() {
     </div>
   );
 }
-
-export default Home;

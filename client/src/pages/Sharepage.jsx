@@ -22,7 +22,7 @@ import axios from 'axios';
 
 const { TextArea } = Input;
 
-function Sharepage({ initialData = null, mode = "create" }) {
+export default function Sharepage({ initialData = null, mode = "create" }) {
   const [previewVisible, setPreviewVisible] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
   const [recipeLoading, setRecipeLoading] = useState(false);
@@ -113,7 +113,7 @@ function Sharepage({ initialData = null, mode = "create" }) {
         })
       );
       // --- Confirmation of FormData contents ---
-      console.log("=== FormData contents ===");
+      // console.log("=== FormData contents ===");
       const formDataObj = {};
 
       for (let [key, value] of formData.entries()) {
@@ -125,8 +125,8 @@ function Sharepage({ initialData = null, mode = "create" }) {
         }
       }
 
-      console.dir(formDataObj);
-      console.log("========================");
+      // console.dir(formDataObj);
+      // console.log("========================");
       // Confirm modal
       Modal.confirm({
         title: mode === "edit" ? "ยืนยันการอัปเดตสูตรอาหาร?" : "ยืนยันการแชร์สูตรอาหาร?",
@@ -661,5 +661,3 @@ const VideoPreview = ({ url }) => {
 //     </div>
 //   )
 // }
-
-export default Sharepage

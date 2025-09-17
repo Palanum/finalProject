@@ -685,6 +685,7 @@ router.delete('/admin/user/:id', requireAdmin, async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 /*sent alarm to user */
 router.post('/admin/user/:id/alarm', requireAdmin, async (req, res) => {
   const { id } = req.params;
@@ -877,6 +878,117 @@ router.patch('/admin/comment/:id', requireAdmin, async (req, res) => {
   }
 });
 
+const typeHandlers = {
+  user: async (id) => {
+    const detail = await User.findByPk(id, { attributes: ['id', 'username', 'email'] });
+    return { detail, report_name: detail?.username || 'Deleted User' };
+  },
+  recipe: async (id) => {
+    const detail = await Recipe.findByPk(id, {
+      attributes: ['RecipeID', 'Title', 'ImageURL', 'videoURL'],
+      include: [
+        { model: User, attributes: ['id', 'username'] },
+        { model: Category, attributes: ['CategoryID', 'name'] },
+        { model: Ingredient, include: [DataIngredient] },
+        { model: Instruction, include: [InstructionImg] },
+        { model: Comment, include: [User] }
+      ]
+    });
+    return { detail, report_name: detail?.Title || 'Deleted Recipe' };
+  },
+  ingredient: async (id) => {
+    const detail = await Ingredient.findByPk(id, {
+      include: [
+        DataIngredient,
+        { model: Recipe, attributes: ['RecipeID', 'Title'] }
+      ]
+    });
+
+    const ingredientName = detail?.DataIngredient?.name_th || 'Deleted Ingredient';
+    const recipeTitle = detail?.Recipe?.Title || 'Deleted Recipe';
+    const report_name = `${ingredientName} of ${recipeTitle}`;
+
+    return { detail, report_name };
+  },
+
+  instruction: async (id) => {
+    const detail = await Instruction.findByPk(id, {
+      include: [
+        { model: InstructionImg },
+        { model: Recipe, attributes: ['RecipeID', 'Title'] }
+      ]
+    });
+
+    const instructionText = detail?.details || 'Deleted Instruction';
+    const recipeTitle = detail?.Recipe?.Title || 'Deleted Recipe';
+    const report_name = `${instructionText} of ${recipeTitle}`;
+
+    return { detail, report_name };
+  },
+
+  instruction_image: async (id) => {
+    const detail = await Instruction.findByPk(id, {
+      include: [
+        { model: InstructionImg },
+        { model: Recipe, attributes: ['RecipeID', 'Title'] }
+      ]
+    });
+
+    const recipeTitle = detail?.Recipe?.Title || 'Deleted Recipe';
+    const report_name = `Instruction Image of ${recipeTitle}`;
+
+    return { detail, report_name };
+  },
+
+  recipe_image: async (id) => {
+    const detail = await Recipe.findByPk(id, { attributes: ['RecipeID', 'Title', 'ImageURL'] });
+    const report_name = `recipe Image of ${detail?.Title}` || 'Deleted Recipe';
+    return { detail, report_name };
+  },
+  category: async (id) => {
+    const detail = await Category.findByPk(id, {
+      include: [{ model: Recipe, attributes: ['RecipeID', 'Title'] }]
+    });
+    const categoryName = detail?.name || 'Deleted Category';
+    const recipeTitle = detail?.Recipe?.Title || 'Unknown Recipe';
+    const report_name = `${categoryName} of ${recipeTitle}`;
+    return { detail, report_name };
+  },
+
+  video: async (id) => {
+    const detail = await Recipe.findByPk(id, { attributes: ['RecipeID', 'Title', 'videoURL'] });
+    const report_name = detail ? `Video of ${detail.Title}` : 'Deleted Recipe Video';
+    return { detail, report_name };
+  },
+
+  comment: async (id) => {
+    const detail = await Comment.findByPk(id, { include: [User, Recipe] });
+    const recipeTitle = detail?.Recipe?.Title || 'Deleted Recipe';
+    const report_name = `Comment of User:${detail?.User?.username} in ${recipeTitle}`;
+    return { detail, report_name };
+  },
+  alarm: async (id, report) => {
+    const recipeId = report.reported_type.split(',')[1];
+    const alarmRecipe = recipeId
+      ? await Recipe.findByPk(recipeId, { attributes: ['Title'] })
+      : null;
+    const reportedUser = !recipeId && report.reported_id
+      ? await User.findByPk(report.reported_id, { attributes: ['username'] })
+      : null;
+
+    const detail = { type: 'alarm', text: report.reason, recipe: alarmRecipe };
+    const report_name = alarmRecipe?.Title
+      ? `Recipe: ${alarmRecipe.Title}`
+      : recipeId
+        ? 'Deleted Recipe'
+        : `User: ${reportedUser?.username || 'Deleted User'}`;
+    return { detail, report_name };
+  },
+  other: async (id, report) => {
+    return { detail: { info: report.reason }, report_name: report.reason || 'Other' };
+  }
+};
+
 // get report data
 router.get('/admin/report', requireAdmin, async (_, res) => {
   try {
@@ -930,7 +1042,8 @@ router.get('/admin/report', requireAdmin, async (_, res) => {
             detail = await Ingredient.findByPk(r.reported_id, {
               include: [DataIngredient, Recipe]
             });
-            report_name = detail?.DataIngredient?.name_th || `Ingredient #${r.reported_id}`;
+            console.dir(detail)
+            report_name = detail?.DataIngredient?.name_th || `Deleted Recipe or Ingredient`;
             break;
 
 
@@ -939,7 +1052,7 @@ router.get('/admin/report', requireAdmin, async (_, res) => {
             detail = await Instruction.findByPk(r.reported_id, {
               include: [InstructionImg, Recipe]
             });
-            report_name = detail ? detail.details || `Instruction ${detail.id}` : null;
+            report_name = detail?.details || `Deleted Recipe or Instruction`;
             break;
 
           case 'video':
@@ -961,6 +1074,9 @@ router.get('/admin/report', requireAdmin, async (_, res) => {
               ? await Recipe.findByPk(recipeId, { attributes: ['Title'] })
               : null;
 
+            let reportedUser = !recipeId && r.reported_id
+              ? await User.findByPk(r.reported_id, { attributes: ['username'] })
+              : null;
             detail = {
               type: 'alarm',
               text: r.reason,
@@ -968,10 +1084,10 @@ router.get('/admin/report', requireAdmin, async (_, res) => {
             };
 
             report_name = alarmRecipe?.Title
-              ? `Alarm of Recipe: ${alarmRecipe.Title}`
+              ? `Recipe: ${alarmRecipe.Title}`
               : recipeId
-                ? 'Alarm of Recipe: deleted'
-                : 'Alarm';
+                ? 'Deleted Recipe'
+                : `User: ${reportedUser?.username || 'Delected User'}`;
             break;
 
           default:

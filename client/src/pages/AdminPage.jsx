@@ -942,6 +942,7 @@ function ReportSection() {
                     onClick={() => {
                         setSelectedReport(record);
                         setModalVisible(true);
+                        console.dir(record)
                     }} >
                     View Report
                 </Button>),
@@ -993,8 +994,8 @@ function ReportSection() {
                             {selectedReport.reported_type}
                         </p>
                         <p>
-                            <b>Reported ID:</b>
-                            {selectedReport.reported_id}
+                            <b>Reported details:</b>
+                            ID: {selectedReport.reported_id} - {selectedReport.reported_name}
                         </p>
                         <p>
                             <b>Reason:</b>

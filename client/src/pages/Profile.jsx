@@ -432,8 +432,4 @@ function AlarmSection() {
     );
 }
 
-
-
-
-
 export default Profile
