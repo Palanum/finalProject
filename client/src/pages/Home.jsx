@@ -21,7 +21,14 @@ export default function Home() {
         <p className='sub-text text-center'>เรารวมสูตรอาหารต่างๆ ที่อร่อยและดีต่อสุขภาพให้คุณได้เลือกสรรค์ รวมถึงแชร์สูตรอาหารส่วนตัวไว้ที่นี้แล้ว</p>
         <div className="flex flex-column align-center gap-1 mt-3">
           <input type="text" id='searchRecipe' value={textSearch} onChange={(e) => setTextSearch(e.target.value)} style={{ width: '50ch' }} className='normal-input round' placeholder='ค้นหาสูตร เช่น ไข่เจียว, หมูกรอบ หรือวัตถุดิบ เช่น หมู, ไก่, แครอท' />
-          <Normalbtn NavLink={textSearch.trim() ? `/search?q=${encodeURIComponent(textSearch)}` : ""} styleValue='green' text="ค้นหา" />
+          <Normalbtn
+            NavLink={textSearch.trim() ?
+              `/search?q=${encodeURIComponent(textSearch)}&includeIngredient=true`
+              : ""
+            }
+            styleValue='green'
+            text="ค้นหา"
+          />
         </div>
       </section>
       <section className='card-section flex flex-column gap-1 align-center pt-3 pb-3'>

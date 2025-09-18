@@ -77,11 +77,11 @@ const RecipesAndSearchPage = () => {
   };
 
   return (
-    <div className="recipes-page" style={{ padding: "20px" }}>
+    <div className="recipes-page p-3">
       <h1>{query ? "ผลการค้นหา" : "สูตรอาหารทั้งหมด"}</h1>
 
       {/* Basic search */}
-      <div className="search-container flex gap-2 align-center" style={{ marginBottom: "10px" }}>
+      <div className="search-container flex gap-2 align-center mb-2">
         <Search
           placeholder="ค้นหาสูตรอาหาร..."
           allowClear
@@ -109,15 +109,20 @@ const RecipesAndSearchPage = () => {
 
       {/* Advanced search filters */}
       {showAdvanced && (
-        <div className="advanced-filters flex flex-column gap-2" style={{ marginBottom: "20px" }}>
+        <div className="advanced-filters flex flex-column gap-2" >
           <div className="time-filters flex flex-column gap-2">
             <Row gutter={[16, 16]}>
-              <Col md={12} sm={24} xs={24}>
-                <Row justify={"space-between"} align="middle">
-                  <Col span={4}>
+              <Col md={12}>
+                <Row
+                  align="middle"
+                  className="gap-2"
+                >
+                  <Col>
                     <Switch checked={includeMinTime} onChange={setIncludeMinTime} />
                   </Col>
-                  <Col span={6}><label htmlFor="min-time">เวลาขั้นต่ำ</label></Col>
+                  <Col>
+                    <label htmlFor="min-time">เวลาขั้นต่ำ</label>
+                  </Col>
                   <Col span={14}>
                     <Input
                       id="min-time"
@@ -134,12 +139,15 @@ const RecipesAndSearchPage = () => {
 
                 </Row>
               </Col>
-              <Col md={12} sm={24} xs={24}>
-                <Row align="middle" justify="space-between">
-                  <Col span={4}>
+              <Col md={12}>
+                <Row
+                  align="middle"
+                  className="gap-2"
+                >
+                  <Col>
                     <Switch checked={includeMaxTime} onChange={setIncludeMaxTime} />
                   </Col>
-                  <Col span={6}><label htmlFor="max-time">เวลาสูงสุด</label></Col>
+                  <Col><label htmlFor="max-time">เวลาสูงสุด</label></Col>
                   <Col span={14}>
                     <Input
                       id="max-time"
@@ -159,8 +167,8 @@ const RecipesAndSearchPage = () => {
 
           </div>
           <div className="ingredient-filter flex gap-2 align-center">
-            <span>ค้นหาในวัตถุดิบด้วย</span>
-            <Switch checked={includeIngredient} onChange={setIncludeIngredient} />
+            <label htmlFor="indentIngredient">ค้นหาในวัตถุดิบด้วย</label>
+            <Switch id="indentIngredient" checked={includeIngredient} onChange={setIncludeIngredient} />
           </div>
         </div>
       )}

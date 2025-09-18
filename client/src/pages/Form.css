@@ -38,7 +38,7 @@
 
 .input-text {
     background-color: var(--input-bg);
-    border: var(--border-1-solid) var(--border-cl);
+    /* border: var(--border-1-solid) var(--border-cl); */
     color: var(--text-yellow);
 }
 

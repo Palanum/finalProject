@@ -127,7 +127,11 @@ const thaiFallback = {
   "น้ำมันพืช": { eng: "vegetable oil", calories: 884, protein: 0, fat: 100, carbs: 0 },
   "น้ำมันมะพร้าว": { eng: "coconut oil", calories: 862, protein: 0, fat: 100, carbs: 0 },
   "น้ำมันงา": { eng: "sesame oil", calories: 884, protein: 0, fat: 100, carbs: 0 },
-
+  "เกลือ": { eng: "salt", calories: 0, protein: 0, fat: 0, carbs: 0 },
+  "ผงชูรส": { eng: "MSG", calories: 0, protein: 0, fat: 0, carbs: 0 },
+  "น้ำส้มสายชู": { eng: "vinegar", calories: 0, protein: 0, fat: 0, carbs: 0 },
+  "พริกป่น": { eng: "chili powder", calories: 0, protein: 0, fat: 0, carbs: 0 },
+  "พริกไทยป่น": { eng: "ground black pepper", calories: 0, protein: 0, fat: 0, carbs: 0 },
   // Herbs / vegetables
   "ตะไคร้": { eng: "lemongrass", calories: 99, protein: 1.8, fat: 0.5, carbs: 25.0 },
   "ข่า": { eng: "galangal", calories: 80, protein: 1.8, fat: 0.3, carbs: 18.0 },
@@ -157,6 +161,11 @@ const thaiFallback = {
   "พริกแกงแดง": { eng: "red curry paste", calories: 200, protein: 4, fat: 10, carbs: 20 },
   "พริกแกงเขียว": { eng: "green curry paste", calories: 180, protein: 3, fat: 9, carbs: 18 },
   "พริกแกงเผ็ด": { eng: "spicy curry paste", calories: 190, protein: 3.5, fat: 9, carbs: 19 },
+  "พริกแกงเหลือง": { eng: "yellow curry paste", calories: 185, protein: 3, fat: 8.5, carbs: 18 },
+  "พริกแกงมัสมั่น": { eng: "massaman curry paste", calories: 210, protein: 4, fat: 11, carbs: 21 },
+  "พริกแกงพะแนง": { eng: "panang curry paste", calories: 205, protein: 4, fat: 10, carbs: 20 },
+  "พริกแกงป่า": { eng: "jungle curry paste", calories: 180, protein: 3, fat: 9, carbs: 16 },
+  "พริกแกงกะหรี่": { eng: "curry powder paste", calories: 200, protein: 3.5, fat: 10, carbs: 20 },
 
   // Dried seafood
   "กุ้งแห้ง": { eng: "dried shrimp", calories: 200, protein: 45, fat: 2, carbs: 3 },
@@ -221,10 +230,22 @@ async function mapIngredient(thaiInput) {
   return await libreTranslateThaiToEng(thaiInput);
 }
 
-function chooseBestFood(rawFoods, engName) {
+function chooseBestFood(rawFoods, engName, thaiName = '') {
   const lowerName = engName.toLowerCase();
 
-  // first try exact match with main name or any synonyms
+  // Define categories
+  const meatCategories = ['Poultry Products', 'Beef Products', 'Pork Products', 'Seafood Products'];
+  const plantCategories = ['Vegetables and Vegetable Products', 'Fruits and Fruit Juices', 'Legumes and Legume Products'];
+  const spiceCategories = ['Spices and Herbs', 'Condiments and Sauces'];
+  const dairyCategories = ['Dairy and Egg Products'];
+
+  // Determine ingredient type based on Thai name / fallback
+  let type = 'plant';
+  if (thaiName.match(/ไก่|หมู|วัว|เนื้อ|เป็ด|กุ้ง|ปู|ปลา|ไข่/)) type = 'meat';
+  else if (thaiName.match(/พริก|เกลือ|น้ำตาล|น้ำปลา|ซอส|น้ำมัน|เครื่องเทศ|herb|spice/i)) type = 'spice';
+  else if (thaiName.match(/นม|เนย|ชีส|ไข่/)) type = 'dairy';
+
+  // 1️⃣ Exact match
   let match = rawFoods.find(f =>
     f.description.toLowerCase() === lowerName ||
     Object.values(ingredientData).some(data =>
@@ -232,29 +253,55 @@ function chooseBestFood(rawFoods, engName) {
       data.synonyms.some(s => f.description.toLowerCase().includes(s.toLowerCase()))
     )
   );
-  if (match) return match;
+  if (match) {
+    console.log('✅ Exact match found:');
+    console.dir(match, { depth: 1 });
+    return match;
+  }
 
-  // next: partial match with main name or synonyms
-  match = rawFoods.find(f =>
-    f.description.toLowerCase().includes(lowerName) ||
-    Object.values(ingredientData).some(data =>
-      data.eng.toLowerCase() === lowerName &&
-      data.synonyms.some(s => f.description.toLowerCase().includes(s.toLowerCase()))
-    )
-  );
-  if (match) return match;
+  // 2️⃣ Partial match filtered by ingredient type
+  match = rawFoods.find(f => {
+    const desc = f.description.toLowerCase();
+    const isPartial = desc.includes(lowerName) ||
+      Object.values(ingredientData).some(data =>
+        data.eng.toLowerCase() === lowerName &&
+        data.synonyms.some(s => desc.includes(s.toLowerCase()))
+      );
 
-  // then fallback to categories
-  const meatCategories = ['Poultry Products', 'Beef Products', 'Pork Products', 'Seafood Products'];
-  const plantCategories = ['Vegetables and Vegetable Products', 'Fruits and Fruit Juices', 'Legumes and Legume Products'];
+    // Filter by type
+    if (!isPartial) return false;
+    if (type === 'plant') return plantCategories.includes(f.foodCategory) || spiceCategories.includes(f.foodCategory);
+    if (type === 'meat') return meatCategories.includes(f.foodCategory);
+    if (type === 'spice') return spiceCategories.includes(f.foodCategory) || plantCategories.includes(f.foodCategory);
+    if (type === 'dairy') return dairyCategories.includes(f.foodCategory);
+    return true;
+  });
+  if (match) {
+    console.log('🔹 Partial match found (type filter):');
+    console.dir(match, { depth: 0 });
+    return match;
+  }
 
-  match = rawFoods.find(f => plantCategories.includes(f.foodCategory));
-  if (match) return match;
+  // 3️⃣ Fallback to categories
+  const categoryMap = {
+    plant: [...plantCategories, ...spiceCategories],
+    meat: meatCategories,
+    spice: [...spiceCategories, ...plantCategories],
+    dairy: dairyCategories
+  };
 
+  match = rawFoods.find(f => categoryMap[type].includes(f.foodCategory));
+  if (match) {
+    console.log(`🍃 Fallback to ${type} category:`);
+    console.dir(match, { depth: 0 });
+    return match;
+  }
+
+  // 4️⃣ Final fallback
+  console.log('⚠️ Fallback to first raw food:');
+  console.dir(rawFoods[0], { depth: 0 });
   return rawFoods[0];
 }
-
-
 
 function extractNutrition(food) {
   const nutrientIds = {
@@ -274,7 +321,9 @@ function extractNutrition(food) {
 
   return nutrition;
 }
+
 function filterRawFoods(foods) {
+  // console.dir(foods)
   return foods.filter(f => {
     const text = (f.description + ' ' + (f.foodCategory || '') + ' ' + (f.commonNames || '')).toLowerCase();
     // include all foods unless explicitly cooked/fried/etc.
@@ -298,10 +347,6 @@ async function searchUsdaByName(engName, strict = true) {
     return [];
   }
 }
-
-
-
-
 
 async function findOrCreateIngredient(thaiName, transaction) {
   thaiName = thaiName.trim();
@@ -339,7 +384,7 @@ async function findOrCreateIngredient(thaiName, transaction) {
   let nutrition = { calories: 0, protein: 0, fat: 0, carbs: 0 };
   let chosenFood = null;
 
-  if (isCommonRawFood(thaiName)) {
+  if (engName) {
     let foods = await searchUsdaByName(engName, true);
     let rawFoods = filterRawFoods(foods);
 
@@ -349,7 +394,7 @@ async function findOrCreateIngredient(thaiName, transaction) {
     }
 
     if (rawFoods.length) {
-      chosenFood = chooseBestFood(rawFoods, engName);
+      chosenFood = chooseBestFood(rawFoods, engName, thaiName);
       nutrition = extractNutrition(chosenFood);
       console.log(`USDA enriched nutrition: ${chosenFood.description} (FDC ID: ${chosenFood.fdcId})`);
     }
@@ -371,7 +416,40 @@ async function findOrCreateIngredient(thaiName, transaction) {
   return dataIng;
 }
 
+const testCases = ["มะระ", "น้ำปลา", "มะเขือเทศ", "เกลือ", "ออริกาโน"];
+async function runTests(testCases) {
+  // Sequelize transaction is optional, you can pass `null` too
+  const transaction = null;
+  for (const name of testCases) {
+    console.log("\n=== Testing:", name, "===");
+    try {
+      const result = await findOrCreateIngredient(name, transaction);
 
+      let resolvedFrom;
+      if (result.source === "manual") {
+        resolvedFrom = "✅ Resolved from self table (thaiFallback)";
+      } else if (result.source === "USDA") {
+        resolvedFrom = "✅ Resolved from USDA";
+      } else if (result.source === "local") {
+        resolvedFrom = "⚠️ Local fallback (no USDA, no manual)";
+      } else {
+        resolvedFrom = "ℹ️ Found existing in DB";
+      }
+
+      console.log("👉 Input:", name);
+      console.log("👉 Output:", result);
+      console.log("👉 Resolved From:", resolvedFrom);
+    } catch (err) {
+      console.error("❌ Error for", name, ":", err.message);
+    }
+  }
+
+  // if you use Sequelize, close connection after test
+  if (Op.sequelize) {
+    await Op.sequelize.close();
+  }
+}
+// runTests(testCases);
 
 
 // Wrap Cloudinary upload in async
@@ -386,6 +464,24 @@ cloudinary.uploader.upload_stream_async = function (buffer, options = {}) {
   });
 };
 
+router.get('/getData/categories', async (req, res) => {
+  try {
+    const categories = await Category.findAll({ attributes: ['Name'] });
+    res.json(categories);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+router.get('/getData/ingredients', async (req, res) => {
+  try {
+    const ingredients = await DataIngredient.findAll({ attributes: ['name_th'] });
+    res.json(ingredients);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
 router.post('/addnew', upload.fields([
   { name: 'recipeImage', maxCount: 1 },
@@ -487,31 +583,6 @@ router.post('/addnew', upload.fields([
       }
 
     }
-
-
-    // // 5️⃣ Steps & step images
-    // let stepImageIndex = 0;
-    // for (const step of stepsArr) {
-    //   const instruction = await Instruction.create({
-    //     RecipeID,
-    //     details: step.text || ''
-    //   }, { transaction: t });
-
-    //   const stepImages = step.stepImages || [];
-    //   for (const file of stepImages) {
-    //     if (file.originFileObj) {
-    //       const uploadedStepImg = await cloudinary.uploader.upload_stream_async(
-    //         allStepImages[stepImageIndex].buffer,
-    //         { folder: `image_project/recipe_${RecipeID}/steps` }
-    //       );
-    //       await InstructionImg.create({
-    //         instructionID: instruction.instructionID,
-    //         imageURL: uploadedStepImg.secure_url
-    //       }, { transaction: t });
-    //       stepImageIndex++;
-    //     }
-    //   }
-    // }
 
     await t.commit();
     res.json({ msg: 'Recipe added successfully!', RecipeID });
