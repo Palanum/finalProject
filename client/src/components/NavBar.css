@@ -30,6 +30,7 @@
   left: 50%;
   top: 0;
   transform: translateX(-50%);
+  padding: .5rem 1.5rem;
 }
 
 .logo-container {
@@ -37,7 +38,7 @@
 }
 
 .App-logo {
-  width: 7rem;
+  object-fit: contain;
 }
 
 .nav-links {
