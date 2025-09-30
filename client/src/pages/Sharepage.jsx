@@ -356,6 +356,7 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
 
                         <Form.Item {...rest} name={[name, "unit"]} rules={[{ required: true }]}>
                           <Select
+                            style={{ minWidth: "11ch" }}
                             options={[
                               "กิโลกรัม",
                               "กรัม",
@@ -492,13 +493,16 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
 
         {/* Submit */}
         <Form.Item>
-          <Button
-            type="default"
-            htmlType="submit"
-            icon={mode === "edit" ? <EditOutlined /> : <PlusOutlined />}
-          >
-            {mode === "edit" ? "อัปเดตสูตรของฉัน" : "แชร์สูตรของฉัน"}
-          </Button>
+          <div className='flex pl-3'>
+            <Button
+              size='large'
+              type="default"
+              htmlType="submit"
+              icon={mode === "edit" ? <EditOutlined /> : <PlusOutlined />}
+            >
+              {mode === "edit" ? "อัปเดตสูตรของฉัน" : "แชร์สูตรของฉัน"}
+            </Button>
+          </div>
         </Form.Item>
       </Form>
 

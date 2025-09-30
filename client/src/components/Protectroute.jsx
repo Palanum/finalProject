@@ -15,9 +15,9 @@ function ProtectedRoute({ children, messageText, requiredRole }) {
     useEffect(() => {
         if (!notifiedRef.current) {
             if (!user) {
-                message.error(messageText || "You must be logged in to access this page");
+                message.error(messageText || "โปรดเข้าสู่ระบบ");
             } else if (!hasAccess) {
-                message.error("You don’t have permission to access this page");
+                message.error("โปรดติดต่อผู้ดูแลระบบ");
             }
             notifiedRef.current = true;
         }

@@ -30,7 +30,7 @@ router.post('/register', async (req, res) => {
   try {
     const { username, password, email } = req.body;
     if (!username || !password || !email) {
-      return res.status(400).json({ error: 'All fields are required' });
+      return res.status(400).json({ error: 'ต้องกรอกข้อมูลทั้งหมด' });
     }
 
     // Check existing user/email
@@ -43,7 +43,7 @@ router.post('/register', async (req, res) => {
 
     if (existing) {
       await t.rollback();
-      return res.status(400).json({ error: 'Username or email already taken' });
+      return res.status(400).json({ error: 'ชื่อผู้ใช้หรืออีเมลถูกใช้ไปแล้ว' });
     }
 
     const password_hash = await bcrypt.hash(password, 10);
@@ -70,7 +70,7 @@ router.post('/register', async (req, res) => {
     };
 
     return res.json({
-      message: 'User registered successfully',
+      message: 'ลงทะเบียนสำเร็จ',
       user: req.session.user
     });
 
@@ -86,17 +86,17 @@ router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password) {
-      return res.status(400).json({ error: 'Username and password required' });
+      return res.status(400).json({ error: 'ต้องมีชื่อผู้ใช้และรหัสผ่าน' });
     }
 
     const user = await User.findOne({ where: { username } });
     if (!user) {
-      return res.status(400).json({ error: 'Invalid username or password' });
+      return res.status(400).json({ error: 'ชื่อผู้ใช้นี้ไม่มีในระบบ' });
     }
 
     const isMatch = await bcrypt.compare(password, user.password_hash);
     if (!isMatch) {
-      return res.status(400).json({ error: 'Invalid username or password' });
+      return res.status(400).json({ error: 'ชือผู้ใช้หรือรหัสผ่านผิด' });
     }
 
     req.session.user = {
@@ -109,7 +109,7 @@ router.post('/login', async (req, res) => {
     };
 
     return res.json({
-      message: 'Login successful',
+      message: 'เข้าสู่ระบบสำเร็จ',
       user: req.session.user
     });
 
@@ -144,7 +144,7 @@ router.post("/change-password", async (req, res) => {
     res.json({ message: "เปลี่ยนรหัสผ่านสำเร็จ ✅" });
   } catch (err) {
     console.error("Change password error:", err);
-    res.status(500).json({ error: "เกิดข้อผิดพลาดที่เซิร์ฟเวอร์" });
+    res.status(500).json({ error: "Server error" });
   }
 });
 
@@ -156,7 +156,7 @@ router.post('/logout', (req, res) => {
     }
     // console.log('Session after logout:', req.session);
     res.clearCookie('connect.sid'); // default cookie name
-    res.json({ message: 'Logout successful' });
+    res.json({ message: 'ออกจากระบบสำเร็จ' });
   });
 
 });
@@ -167,7 +167,7 @@ router.post('/:id/favorite', async (req, res) => {
   const { action } = req.body;
 
   if (!req.session?.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
   }
 
   const UserID = req.session.user.id;
@@ -175,10 +175,10 @@ router.post('/:id/favorite', async (req, res) => {
   try {
     if (action === 'add') {
       await Favorite.findOrCreate({ where: { UserID, RecipeID } });
-      return res.json({ message: 'Added to favorites', isFavorite: true });
+      return res.json({ message: 'เพิ่มรายการโปรดแล้ว', isFavorite: true });
     } else if (action === 'remove') {
       await Favorite.destroy({ where: { UserID, RecipeID } });
-      return res.json({ message: 'Removed from favorites', isFavorite: false });
+      return res.json({ message: 'ลบรายการโปรดแล้ว', isFavorite: false });
     } else {
       return res.status(400).json({ error: 'Invalid action' });
     }
@@ -194,7 +194,7 @@ router.post('/:id/like', async (req, res) => {
   const { action } = req.body;
 
   if (!req.session?.user) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบก่อน' });
   }
 
   const UserID = req.session.user.id;
@@ -202,10 +202,10 @@ router.post('/:id/like', async (req, res) => {
   try {
     if (action === 'add') {
       await Like.findOrCreate({ where: { UserID, RecipeID } });
-      return res.json({ message: 'Added to likes', isLike: true });
+      return res.json({ message: 'เพิ่มเมนูที่ชอบแล้ว', isLike: true });
     } else if (action === 'remove') {
       await Like.destroy({ where: { UserID, RecipeID } });
-      return res.json({ message: 'Removed from likes', isLike: false });
+      return res.json({ message: 'ลบเมนูที่ชอบแล้ว', isLike: false });
     } else {
       return res.status(400).json({ error: 'Invalid action' });
     }
@@ -544,13 +544,13 @@ router.patch('/report/:id', requireAdmin, async (req, res) => {
         await evidence.destroy();
       }
       await report.destroy();
-      return res.json({ message: 'Report and its images deleted successfully' });
+      return res.json({ message: 'ลบรายงานแล้ว' });
     }
 
     if (action === 'resolved') {
       report.status = 'resolved'; // or 'resolved', whatever you use
       await report.save();
-      return res.json({ message: 'Report marked as resolved', report });
+      return res.json({ message: 'รายงานนี้ดำเนินการสำเร็จ', report });
     }
 
     res.status(400).json({ error: 'Invalid action. Use "delete" or "finish".' });
@@ -646,20 +646,20 @@ router.patch('/admin/user/:id/ban', requireAdmin, async (req, res) => {
       const unbanDate = new Date();
       unbanDate.setDate(unbanDate.getDate() + addBanDay);
       user.stat_update = unbanDate;
-      const message = `You are Banned until ${unbanDate.toLocaleDateString()} by admin.`;
+      const message = `คุณถูกระงับการใช้งาน ${unbanDate.toLocaleDateString()}`;
       await sendAlarmRequest(user.id, message, null, adminId);
 
     } else if (action === 'unban') {
       user.status = 'normal';
       user.stat_update = new Date(); // now
-      const message = 'You have been Unbanned by admin.';
+      const message = 'การระงับการใช้งานถูกปลดแล้ว';
       await sendAlarmRequest(user.id, message, null, adminId);
     } else {
       return res.status(400).json({ error: 'Invalid action' });
     }
 
     await user.save();
-    res.json({ message: `User ${action}ned successfully`, user });
+    res.json({ message: `ผู้ใช้งาน${user.username}${action == 'unban' ? 'ยกเลิกระงับการใช้งาน' : 'ระงับการใช้งาน'}สำเร็จ`, user });
   } catch (err) {
     console.error('Error updating user status:', err);
     res.status(500).json({ error: 'Server error' });
@@ -679,7 +679,7 @@ router.delete('/admin/user/:id', requireAdmin, async (req, res) => {
 
     const deleted = await User.destroy({ where: { id } });
     if (!deleted) return res.status(404).json({ error: 'User not found' });
-    res.json({ message: 'User deleted successfully' });
+    res.json({ message: 'ผู้ใช้งานนี้ถูกลบแล้ว' });
   } catch (err) {
     console.error('Error deleting user:', err);
     res.status(500).json({ error: 'Server error' });
@@ -694,7 +694,7 @@ router.post('/admin/user/:id/alarm', requireAdmin, async (req, res) => {
   try {
     const alarm = await sendAlarmRequest(id, message, recipeId, adminId);
 
-    res.json({ message: 'Alarm sent successfully', alarm });
+    res.json({ message: 'ส่งคำเตือนสำเร็จ', alarm });
   } catch (err) {
     console.error('Error sending alarm:', err);
     res.status(500).json({ error: 'Server error' });
@@ -718,10 +718,10 @@ router.patch('/admin/user/:id/role', requireAdmin, async (req, res) => {
     user.role = role;
     await user.save();
 
-    const message = `Your role has been changed from "${oldRole}" to "${role}" by admin.`;
+    const message = `Role ของคุณถูกเปลี่ยนจาก "${oldRole}" เป็น "${role}"`;
     await sendAlarmRequest(user.id, message, null, adminId);
 
-    res.json({ message: `User role updated to ${role}`, user });
+    res.json({ message: `Role ของผู้ใช้งานเปลี่ยนเป็น ${role}`, user });
   } catch (err) {
     console.error('Error updating user role:', err);
     res.status(500).json({ error: 'Server error' });
@@ -779,12 +779,12 @@ router.delete('/admin/recipe/:id', requireAdmin, async (req, res) => {
 
 
 
-    const alarmMessage = `Your recipe "${recipe.Title}" has been deleted by admin.`;
+    const alarmMessage = `เมนู "${recipe.Title}" ถูกลบแล้ว`;
     await sendAlarmRequest(recipe.UserID, alarmMessage, null, adminId);
 
     // Finally, delete the recipe
     await recipe.destroy();
-    res.json({ message: 'Recipe and its images deleted successfully' });
+    res.json({ message: 'ลบสำเร็จ' });
   } catch (err) {
     console.error('Error deleting recipe:', err);
     res.status(500).json({ error: 'Server error' });
@@ -856,7 +856,7 @@ router.delete('/admin/comment/:id', requireAdmin, async (req, res) => {
     }
 
     await comment.destroy();
-    res.json({ message: 'Comment deleted successfully' });
+    res.json({ message: 'ลบความคิดเห็นสำเร็จ' });
   } catch (err) {
     console.error('Error deleting comment:', err);
     res.status(500).json({ error: 'Server error' });
@@ -871,7 +871,7 @@ router.patch('/admin/comment/:id', requireAdmin, async (req, res) => {
     if (!comment) return res.status(404).json({ error: 'Comment not found' });
     comment.Content = content;
     await comment.save();
-    res.json({ message: 'Comment updated successfully', comment });
+    res.json({ message: 'แก้ไขความคิดเห็นสำเร็จ', comment });
   } catch (err) {
     console.error('Error updating comment:', err);
     res.status(500).json({ error: 'Server error' });

@@ -38,7 +38,7 @@ app.use(async (req, res, next) => {
       await user.save();
 
       // Optional: notify user via alarm
-      await sendAlarmRequest(user.id, 'You have been automatically unbanned.');
+      await sendAlarmRequest(user.id, 'การระงับการใช้งานถูกปลดแล้ว');
     }
   } catch (err) {
     console.error('Error in auto-unban middleware:', err);

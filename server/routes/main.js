@@ -51,13 +51,4 @@ router.get('/home', async (req, res) => {
 });
 
 
-
-
-router.get('/message', (req, res) => {
-  res.json({ msg: 'this is message for API route ,HAHA!' });
-});
-router.get('/health', (req, res) => {
-  res.json({ status: 'OK', msg: 'this is message for health route ,HAHA!' });
-});
-
 module.exports = router;

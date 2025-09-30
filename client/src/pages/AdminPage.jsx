@@ -4,6 +4,16 @@ import './AdminPage.css'
 import './Profile.css'
 import { AuthContext } from '../context/AuthContext';
 import { Button, Card, Checkbox, Col, Form, Input, message, Modal, Pagination, Popconfirm, Row, Select, Space, Spin, Table, Tag } from "antd";
+
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { library } from '@fortawesome/fontawesome-svg-core'
+
+import { fas } from '@fortawesome/free-solid-svg-icons'
+import { far } from '@fortawesome/free-regular-svg-icons'
+import { fab } from '@fortawesome/free-brands-svg-icons'
+
+library.add(fas, far, fab)
+
 const { Search } = Input;
 
 export default function AdminPage() {
@@ -22,11 +32,11 @@ export default function AdminPage() {
             <div className='profile-sidebar'>
                 <div className='sidebar-container po-stick'>
                     <ul className='flex flex-column gap-2'>
-                        <li><a href="#dashboard">Dashboard</a></li>
-                        <li><a href="#user-management">User Management</a></li>
-                        <li><a href="#recipe-management">Recipe Management</a></li>
-                        <li><a href="#comment-management">Comment Management</a></li>
-                        <li><a href="#report-section">Reports</a></li>
+                        <li><a href="#dashboard">Dashboard <FontAwesomeIcon icon="fa-solid fa-arrow-trend-up" /></a></li>
+                        <li><a href="#user-management">จัดการสมาชิก <FontAwesomeIcon icon="fa-solid fa-users-gear" /> </a></li>
+                        <li><a href="#recipe-management">จัดการสูตรอาหาร</a></li>
+                        <li><a href="#comment-management">จัดการคอมเม้น <FontAwesomeIcon icon="fa-regular fa-message" /></a></li>
+                        <li><a href="#report-section">การรายงาน <FontAwesomeIcon icon="fa-regular fa-flag" /></a></li>
                     </ul>
                 </div>
             </div>
@@ -117,7 +127,7 @@ function Dashboard() {
         </section>
     );
 }
-const pageSize = 5;
+// const pageSize = 5;
 async function sendAlarmRequest(userId, text, recipeId = null) {
     try {
         const res = await fetch(`/api/users/admin/user/${userId}/alarm`, {
@@ -184,7 +194,7 @@ function UserManagement() {
     };
     const handleBan = async () => {
         if (!banDays || isNaN(banDays)) {
-            message.error("Please enter valid days");
+            message.error("โปรดใส่จำนวนวัน");
             return;
         }
         try {
@@ -195,7 +205,7 @@ function UserManagement() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Error banning user");
-            message.success(`User banned for ${banDays} day(s)`);
+            message.success(`${actionModal.user.username} ถูกแบนเป็นเวลา ${banDays} วันแล้ว`);
             setActionModal({ visible: false, user: null });
             fetchUsers();
         } catch (err) {
@@ -210,7 +220,7 @@ function UserManagement() {
             });
             const data = await res.json();
             if (!res.ok) throw new Error(data.error || "Error deleting user");
-            message.success("User deleted successfully");
+            message.success("ลบผู้ใช้งานสำเร็จ");
             fetchUsers();
             setActionModal({ visible: false, user: null });
         } catch (err) {
@@ -286,8 +296,8 @@ function UserManagement() {
 
 
     const columns = [
-        { title: "Username", dataIndex: "username", key: "username" },
-        { title: "Email", dataIndex: "email", key: "email" },
+        { title: "ชื่อผู้ใช้", dataIndex: "username", key: "username" },
+        { title: "E-mail", dataIndex: "email", key: "email" },
         {
             title: "Role",
             dataIndex: "role",
@@ -295,7 +305,7 @@ function UserManagement() {
             render: (role) => <Tag color={role === "admin" ? "gold" : "blue"}>{role}</Tag>,
         },
         {
-            title: "Status",
+            title: "สถานะ",
             dataIndex: "status",
             key: "status",
             render: (status) => (
@@ -303,7 +313,7 @@ function UserManagement() {
             ),
         },
         {
-            title: "Actions",
+            title: "การจัดการ",
             key: "actions",
             render: (_, record) => {
                 const isSelf = record.id === user?.id;
@@ -312,10 +322,10 @@ function UserManagement() {
                 ) : (
                     <>
                         <Button type="link" onClick={() => openAlarmModal(record)}>
-                            Send Alarm
+                            ส่งคำเตือน
                         </Button>
                         <Button type="link" onClick={() => openActionModal(record)}>
-                            Settings
+                            ตั้งค่า
                         </Button>
                     </>
                 );
@@ -329,7 +339,7 @@ function UserManagement() {
     return (
         <section id="user-management" className="User-management-section">
             <div className="flex just-between align-center mb-2">
-                <h2>User Management</h2>
+                <h2>จัดการสมาชิก</h2>
                 {filteredUsers.length > pageSize && (
                     <Pagination
                         current={currentPage}
@@ -343,7 +353,7 @@ function UserManagement() {
             </div>
 
             <Search
-                placeholder="Search by username"
+                placeholder="ค้นหาชื่อผู้ใช้"
                 allowClear
                 enterButton="Search"
                 onSearch={(value) => { setSearch(value); setCurrentPage(1); }}
@@ -363,7 +373,7 @@ function UserManagement() {
 
             {/* Alarm Modal */}
             <Modal
-                title={`Send Alarm to ${selectedUser?.username}`}
+                title={`ส่งคำเตือนถึง ${selectedUser?.username}`}
                 open={alarmModalVisible}
                 onOk={sendAlarm}
                 onCancel={() => setAlarmModalVisible(false)}
@@ -373,21 +383,21 @@ function UserManagement() {
                     <Form.Item
                         name="message"
                         label="Message"
-                        rules={[{ required: true, message: "Please enter a message" }]}
+                        rules={[{ required: true, message: "โปรดใส่ข้อความเตือนก่อนส่ง" }]}
                     >
-                        <Input.TextArea className="p-3" rows={4} style={{ resize: 'none' }} placeholder="Enter alarm message..." />
+                        <Input.TextArea className="p-3" rows={4} style={{ resize: 'none' }} placeholder="ใส่ข้อความเตือน" />
                     </Form.Item>
                 </Form>
             </Modal>
             <Modal
-                title={`Manage ${actionModal.user?.username}`}
+                title={`การตั้งค่าของ ${actionModal.user?.username}`}
                 open={actionModal.visible}
                 onCancel={() => setActionModal({ visible: false, user: null })}
                 footer={null}
             >
                 <Form layout="vertical">
                     {/* Change role */}
-                    <Form.Item label="Change Role">
+                    <Form.Item label="เปลี่ยน Role">
                         <Select
                             value={actionModal.user?.role}
                             onChange={(newRole) => {
@@ -451,7 +461,7 @@ function UserManagement() {
                     {/* Delete user */}
                     <Form.Item label="Remove This User">
                         <Popconfirm
-                            title={`Are you sure you want to delete ${actionModal.user?.username}?`}
+                            title={`ต้องการลบ ${actionModal.user?.username} ออกจากระบบใช่หรือไม่?`}
                             onConfirm={handleDelete}
                             okText="Yes"
                             cancelText="No"
@@ -464,7 +474,7 @@ function UserManagement() {
                 </Form>
             </Modal>
             <Modal
-                title={`Are you sure you want to change ${roleConfirm.user?.username}'s role?`}
+                title={`ต้องการเปลี่ยน role ของ ${roleConfirm.user?.username} เป็น ${roleConfirm.newRole} ใช่หรือไม่ ?`}
                 open={roleConfirm.visible}
                 onOk={() => {
                     handleRoleChange(roleConfirm.newRole, roleConfirm.user);
@@ -558,32 +568,32 @@ function RecipeManagement() {
 
 
     const columns = [
-        { title: "Title", dataIndex: "Title", key: "Title" },
+        { title: "ชื่อเมนู", dataIndex: "Title", key: "Title" },
         {
-            title: "Owner",
+            title: "ชื่อผู้ใช้",
             dataIndex: "UserID",
             key: "UserID",
             render: (_, record) => record.User?.username || "Unknown"
         },
         {
-            title: "Created",
+            title: "วันที่สร้าง",
             dataIndex: "CreatedAt",
             key: "CreatedAt",
             render: (date) => (date ? new Date(date).toLocaleString() : "-"),
         },
         {
-            title: "Updated",
+            title: "วันที่แก้ไข",
             dataIndex: "UpdatedAt",
             key: "UpdatedAt",
             render: (date) => (date ? new Date(date).toLocaleString() : "-"),
         },
         {
-            title: "Actions",
+            title: "การจัดการ",
             key: "actions",
             render: (_, record) => (
                 <>
                     <Button type="link" onClick={() => openReportModal(record)}>
-                        Report to User
+                        ส่งคำเตือน
                     </Button>
                     <Popconfirm
                         title={`คุณแน่ใจหรือไม่ที่จะลบสูตรอาหาร "${record.Title}" ?`}
@@ -603,7 +613,7 @@ function RecipeManagement() {
     return (
         <section id="recipe-management" className="Recipe-management-section">
             <div className="flex just-between align-center mb-2">
-                <h2>Recipe Management</h2>
+                <h2>จัดการสูตรอาหาร</h2>
                 {filteredRecipes.length > pageSize && (
                     <Pagination
                         current={currentPage}
@@ -615,7 +625,7 @@ function RecipeManagement() {
             </div>
 
             <Input.Search
-                placeholder="Search by title"
+                placeholder="ค้นหาชื่อเมนู"
                 allowClear
                 enterButton="Search"
                 onSearch={(value) => { setSearch(value); setCurrentPage(1); }}
@@ -633,7 +643,7 @@ function RecipeManagement() {
 
             {/* Report Modal */}
             <Modal
-                title={`Report to owner of "${selectedRecipe?.Title}"`}
+                title={`ส่งคำเตือนให้เจ้าของเมนู "${selectedRecipe?.Title}"`}
                 open={reportModalVisible}
                 onOk={sendReport}
                 onCancel={() => setReportModalVisible(false)}
@@ -643,13 +653,13 @@ function RecipeManagement() {
                     <Form.Item
                         name="message"
                         label="Message"
-                        rules={[{ required: true, message: "Please enter a message" }]}
+                        rules={[{ required: true, message: "โปรดกรอกรายละเอือดคำเตือนก่อนส่ง" }]}
                     >
                         <Input.TextArea
                             className="p-3"
                             rows={4}
                             style={{ resize: "none" }}
-                            placeholder="Enter report message..."
+                            placeholder="กรอกรายละเอียดคำเตือน"
                         />
                     </Form.Item>
                 </Form>
@@ -749,9 +759,9 @@ function CommentManagement() {
     };
 
     const columns = [
-        { title: "User", dataIndex: "user", key: "user", render: (user) => user?.username || "Unknown" },
+        { title: "ชื่อผู้ใช้", dataIndex: "user", key: "user", render: (user) => user?.username || "Unknown" },
         {
-            title: "Content",
+            title: "เนื้อหา",
             key: "content",
             render: (_, record) => (
                 <>
@@ -760,15 +770,15 @@ function CommentManagement() {
                 </>
             ),
         },
-        { title: "Type", dataIndex: "type", key: "type", width: 80, render: (type) => <Tag color={type === "alarm" ? "red" : "green"}>{type}</Tag> },
-        { title: "Created", dataIndex: "createdAt", key: "createdAt", render: (date) => (date ? new Date(date).toLocaleString() : "-") },
+        { title: "ชนิด", dataIndex: "type", key: "type", width: 80, render: (type) => <Tag color={type === "alarm" ? "red" : "green"}>{type}</Tag> },
+        { title: "วันที่สร้าง", dataIndex: "createdAt", key: "createdAt", render: (date) => (date ? new Date(date).toLocaleString() : "-") },
         {
             title: "Actions",
             key: "actions",
             render: (_, record) => (
                 <Space direction="vertical">
                     <Checkbox checked={!!skipAlarms[record.id]} onChange={(e) => toggleSkipAlarm(record.id, e.target.checked)}>
-                        <span style={{ fontSize: "0.85rem" }}>Don't trigger alarm</span>
+                        <span style={{ fontSize: "0.85rem" }}>ไม่ส่งข้อความให้เจ้าของ</span>
                     </Checkbox>
                     <Popconfirm
                         title="คุณแน่ใจหรือไม่ที่จะลบคอมเมนต์นี้?"
@@ -787,8 +797,7 @@ function CommentManagement() {
     return (
         <section id="comment-management" className="Comment-management-section">
             <div className="flex just-between align-center mb-2">
-
-                <h2>Comment Management</h2>
+                <h2>จัดการคอมเม้น</h2>
                 {filteredComments.length > pageSize && (
                     <Pagination
                         current={currentPage}
@@ -800,7 +809,7 @@ function CommentManagement() {
             </div>
 
             <Input.Search
-                placeholder="Search by Comment or User"
+                placeholder="ค้นหาเนื้อหาคอมเม้นหรือชื่อผู้ใช้งาน"
                 allowClear
                 enterButton="Search"
                 onSearch={(value) => { setSearch(value); setCurrentPage(1); }}
@@ -815,10 +824,8 @@ function CommentManagement() {
                 pagination={false}
             />
 
-
-
             <Modal
-                title={`Edit Alarm Comment #${selectedComment?.id}`}
+                title={`แก้ไขคอมเม้น ${selectedComment?.content}`}
                 open={editModalVisible}
                 onOk={handleEdit}
                 onCancel={() => setEditModalVisible(false)}
@@ -827,8 +834,8 @@ function CommentManagement() {
                 <Form form={form} layout="vertical">
                     <Form.Item
                         name="content"
-                        label="Content"
-                        rules={[{ required: true, message: "Please enter content" }]}
+                        label="เนื้อหาใหม่"
+                        rules={[{ required: true, message: "โปรดกรอกเนื้อหาของการแก้ไข" }]}
                     >
                         <Input.TextArea rows={4} style={{ resize: "none" }} />
                     </Form.Item>
@@ -888,13 +895,13 @@ function ReportSection() {
             message.success(data.message); setModalVisible(false); fetchReports();
         }
         catch (err) {
-            console.error(err); message.error("Failed to update report");
+            console.error(err); message.error("โหลดข้อมูลล้มเหลว");
         }
     };
     const columns = [
-        { title: "Reporter", dataIndex: "Reporter_name", key: "Reporter_name" },
+        { title: "ผู้รายงาน", dataIndex: "Reporter_name", key: "Reporter_name" },
         {
-            title: "Type - Reported",
+            title: "ชนิด - รายงาน",
             key: "reported_info",
             render: (_, record) => {
                 const baseType = record.reported_type?.split(',')[0] || "unknown";
@@ -916,7 +923,7 @@ function ReportSection() {
             },
         }
         ,
-        { title: "Reason", dataIndex: "reason", key: "reason" },
+        { title: "ข้อความที่แจ้ง", dataIndex: "reason", key: "reason" },
         {
             title: "Status", dataIndex: "status", key: "status",
             render: (status) => status ? (
@@ -931,11 +938,11 @@ function ReportSection() {
             ) : null,
         },
         {
-            title: "Created On", dataIndex: "created_on", key: "created_on",
+            title: "วันที่รายงาน", dataIndex: "created_on", key: "created_on",
             render: (date) => date ? new Date(date).toLocaleString() : "-",
         },
         {
-            title: "Actions", key: "actions",
+            title: "การจัดการ", key: "actions",
             render: (_, record) => (
                 <Button
                     type="link"
@@ -944,14 +951,14 @@ function ReportSection() {
                         setModalVisible(true);
                         console.dir(record)
                     }} >
-                    View Report
+                    ดูรายละอียด
                 </Button>),
         }
     ];
     return (
         <section id="report-section" className="Report-section">
             <div className="flex just-between align-center mb-2">
-                <h2>Reports</h2>
+                <h2>การรายงาน</h2>
                 {filteredReports.length > pageSize && (
                     <Pagination
                         current={currentPage}
@@ -963,7 +970,7 @@ function ReportSection() {
                 )}
             </div>
             <Search
-                placeholder="Search by reporter or type"
+                placeholder="ใส่ชื่อผู้รายงานหรือชนิดรายงาน"
                 allowClear
                 enterButton="Search"
                 onSearch={(value) => setSearch(value)}
@@ -979,26 +986,26 @@ function ReportSection() {
             />
 
             <Modal
-                title={`Report #${selectedReport?.ReportID}`}
+                title={`รายงาน #${selectedReport?.ReportID}`}
 
                 open={modalVisible}
                 onCancel={() => setModalVisible(false)} footer={null} width={700} >
                 {selectedReport && (
                     <div>
                         <p>
-                            <b>Reporter:</b>
+                            <b>ผู้รายงาน:</b>
                             {selectedReport.Reporter_name}
                         </p>
                         <p>
-                            <b>Reported Type:</b>
+                            <b>ชนิด:</b>
                             {selectedReport.reported_type}
                         </p>
                         <p>
-                            <b>Reported details:</b>
+                            <b>รายงาน:</b>
                             ID: {selectedReport.reported_id} - {selectedReport.reported_name}
                         </p>
                         <p>
-                            <b>Reason:</b>
+                            <b>ข้อความที่แจ้ง:</b>
                             {selectedReport.reason}
                         </p>
                         <p>
@@ -1013,12 +1020,12 @@ function ReportSection() {
                                     {selectedReport.status} </Tag>) : "—"}
                         </p>
                         <p>
-                            <b>Created On:</b>
+                            <b>วันที่รายงาน:</b>
                             {" "} {selectedReport.created_on ? new Date(selectedReport.created_on).toLocaleString() : "-"}
                         </p>
                         {/* 🔎 Evidence Section */}
                         <div style={{ marginTop: 16 }}>
-                            <b>Evidence:</b>
+                            <b>หลักฐาน:</b>
                             {selectedReport.evidences?.length > 0 ? (
                                 <ul style={{ listStyle: "none", padding: 0 }}>
                                     {selectedReport.evidences.map((e) => {
@@ -1051,14 +1058,14 @@ function ReportSection() {
                                 </ul>
                             ) : (
                                 <p style={{ color: "gray" }}>
-                                    No evidence provided for this report.
+                                    ไมามีการแนบหลักฐาน
                                 </p>
                             )}
                         </div>
                         {/* 🔎 Command Section */}
                         <div className="mt-1 text-right">
                             <Button danger onClick={() => handleAction(selectedReport.ReportID, "delete")} >
-                                Delete Report
+                                Delete
                             </Button>
                             {selectedReport.status && (
                                 <Button
@@ -1067,7 +1074,7 @@ function ReportSection() {
                                     disabled={selectedReport.status === "resolved"}
                                     onClick={() => handleAction(selectedReport.ReportID, "resolved")}
                                 >
-                                    Mark as Resolved
+                                    ดำเนินการสำเร็จ
                                 </Button>)}
                         </div>
                     </div>)}

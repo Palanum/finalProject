@@ -71,7 +71,7 @@ export default function Recipespage() {
     const toggleLike = async () => {
         if (!user) {
             // User is not logged in
-            message.warning("Please log in to like recipes");
+            message.warning("โปรดเข้าสู่ระบบ");
             return;
         }
         // Just toggle state locally
@@ -160,21 +160,21 @@ export default function Recipespage() {
     };
 
     const items = [
-        { key: "1", label: "Description" },
-        { key: "2", label: "Instructions" },
+        { key: "1", label: "ข้อมูล" },
+        { key: "2", label: "วิธีทำ" },
         { key: "3", label: "Video", disabled: !recipe?.videoURL },
-        { key: "4", label: "Comments" },
+        { key: "4", label: "ความคิดเห็น" },
     ];
 
     const handlePostComment = async (parentId = null) => {
         if (!user) {
-            message.warning("Please login to post a comment");
+            message.warning("โปรดเข้าสู่ระบบ");
             return;
         }
         if (user.status === "banned") {
             const dateUnban = user.stat_update ? new Date(user.stat_update).toLocaleString() : null;
             message.error(
-                `⚠️ Your account is banned and cannot post comments${dateUnban ? "\nUntil: " + dateUnban : ""}`
+                `⚠️ คุณถูกระงับการใช้งานไม่สามารถเขียนความคิดเห็นได้ ${dateUnban ? "\nจนถึง: " + dateUnban : ""}`
             );
             return;
         }
@@ -219,7 +219,7 @@ export default function Recipespage() {
 
             setNewComment("");
             setReplyToCommentId(null);
-            message.success(parentId ? "Reply posted!" : "Comment posted!");
+            message.success(parentId ? "Reply สำเร็จ!" : "แสดงความคิดเห็นสำเร็จ!");
         } catch (err) {
             console.error(err);
             message.error("Something went wrong");
@@ -243,13 +243,13 @@ export default function Recipespage() {
 
     const handleOpenReport = () => {
         if (!user) {
-            message.warning("Please login to report");
+            message.warning("โปรดเข้าสู่ระบบ");
             return;
         }
         if (user.status === "banned") {
             const dateUnban = user.stat_update ? new Date(user.stat_update).toLocaleString() : null;
             message.error(
-                `⚠️ Your account is banned and cannot Report ${dateUnban ? "\nUntil: " + dateUnban : ""}`
+                `⚠️ คุณถูกระงับการใช้งานไม่สามารถรายงานได้ ${dateUnban ? "\nจนถึง: " + dateUnban : ""}`
             );
             return;
         }
@@ -336,7 +336,7 @@ export default function Recipespage() {
                 {recipe.Title}
             </Title>
             <Space style={{ marginBottom: 16 }}>
-                <Button danger onClick={handleOpenReport}>Report</Button>
+                <Button danger onClick={handleOpenReport}>รายงาน</Button>
             </Space>
 
             <Modal
@@ -425,9 +425,9 @@ export default function Recipespage() {
 
                             return (
                                 <Form.Item
-                                    label="Select Element to Report"
+                                    label="เลือกสิ่งที่จะรายงาน"
                                     name="reported_id"
-                                    rules={[{ required: true, message: "Please select the element" }]}
+                                    rules={[{ required: true, message: "โปรดเลือกสิ่งที่รายงาน" }]}
                                 >
                                     {useRadioWithImages ? (
                                         <Radio.Group>
@@ -443,7 +443,7 @@ export default function Recipespage() {
                                             </Space>
                                         </Radio.Group>
                                     ) : (
-                                        <Select placeholder="Select element">
+                                        <Select placeholder="ตัวเลือก">
                                             {options.map(opt => (
                                                 <Select.Option key={opt.value} value={opt.value}>
                                                     {opt.label}
@@ -458,11 +458,11 @@ export default function Recipespage() {
 
                     {/* Description */}
                     <Form.Item
-                        label="Description"
+                        label="รายละเอียด"
                         name="description"
-                        rules={[{ required: true, message: "Please enter description" }]}
+                        rules={[{ required: true, message: "โปรดกรอกรายละเอียด" }]}
                     >
-                        <Input.TextArea rows={4} placeholder="Describe the issue" />
+                        <Input.TextArea rows={4} placeholder="กรอกรายละเอียด" />
                     </Form.Item>
 
                     {/* Upload Images */}
@@ -505,7 +505,7 @@ export default function Recipespage() {
                 tabBarExtraContent={
                     <Space>
                         <span style={{ cursor: "pointer" }} onClick={toggleFavorite}>
-                            <FontAwesomeIcon icon={recipe.isFavorite ? ["fas", "star"] : ["far", "star"]} /> Favorite
+                            <FontAwesomeIcon icon={recipe.isFavorite ? ["fas", "star"] : ["far", "star"]} /> เพิ่มรายการโปรด
                         </span>
                         <span style={{ cursor: "pointer" }} onClick={toggleLike}>
                             <FontAwesomeIcon icon={recipe.isLike ? ["fas", "thumbs-up"] : ["far", "thumbs-up"]} /> Like
@@ -526,18 +526,18 @@ export default function Recipespage() {
                     </Col>
                 </Row>
 
-                <Row gutter={[16, 16]} style={{ marginBottom: 16 }}>
+                <Row gutter={[16, 16]} className="mt-2 mb-2">
                     <Col span={12}>
-                        <Text strong>By: </Text><Text>{recipe.user.username}</Text>
+                        <Text strong>โดย: </Text><Text>{recipe.user.username}</Text>
                     </Col>
                     <Col span={12}>
-                        <Text strong>Time: </Text><Text>{recipe.time} minutes</Text>
+                        <Text strong>เวลาที่ใช้: </Text><Text>{recipe.time} minutes</Text>
                     </Col>
                 </Row>
 
                 <Row gutter={[16, 16]}>
                     <Col span={12}>
-                        <Title level={4}>Ingredients</Title>
+                        <Title level={4}>วัตถุดิบ</Title>
                         <List
                             dataSource={recipe.ingredients}
                             renderItem={ing => (
@@ -550,7 +550,7 @@ export default function Recipespage() {
                         />
                     </Col>
                     <Col span={12}>
-                        <Title level={4}>Nutrients</Title>
+                        <Title level={4}>ข้อมูลโภชนาการ</Title>
                         <List>
                             <List.Item><Text strong>Calories:</Text> {recipe.nutrients.calories.toFixed(2)} kcal</List.Item>
                             <List.Item><Text strong>Protein:</Text> {recipe.nutrients.protein.toFixed(2)} g</List.Item>
@@ -560,17 +560,17 @@ export default function Recipespage() {
                     </Col>
                 </Row>
             </div>
-            <div ref={instructionsRef}>
+            <div ref={instructionsRef} className="mt-2">
                 <Row gutter={[16, 16]}>
                     <Col span={24}>
-                        <Title level={4}>Instructions</Title>
+                        <Title level={4}>ขั้นตอนการปรุงอาหาร</Title>
                         <List
                             dataSource={recipe.instructions}
-                            renderItem={inst => (
+                            renderItem={(inst, index) => (
                                 <List.Item>
                                     <Paragraph>
-                                        {inst.text}
-                                        <div style={{ marginTop: 8 }}>
+                                        {index + 1}. {inst.text}
+                                        <div className="flex align-center gap-2 mt-2">
                                             {inst.images.map((img, j) => (
                                                 <Image
                                                     key={j}
@@ -594,7 +594,7 @@ export default function Recipespage() {
 
             {/* Video section */}
             {recipe.videoURL && (
-                <div ref={videoRef} style={{ marginTop: 32 }}>
+                <div ref={videoRef} className="mt-2">
                     <Row gutter={[16, 16]}>
                         <Col span={24}>
                             <Card title="Video" variant={false}>
@@ -604,14 +604,14 @@ export default function Recipespage() {
                     </Row>
                 </div>
             )}
-            <div ref={commentRef} style={{ marginTop: 32 }}>
-                <Title level={4}>Comments</Title>
+            <div ref={commentRef} className="mt-2">
+                <Title level={4}>ความคิดเห็น</Title>
                 <CommentThread comments={recipe.comments} onReply={setReplyToCommentId} />
                 <div className="flex align-center gap-1 mt-1">
                     {replyToCommentId && (() => {
                         const parentComment = findCommentById(recipe.comments, replyToCommentId);
                         if (parentComment) {
-                            return <Text type="secondary">Replying to comment of {parentComment.user.username || "deleted User"}</Text>;
+                            return <Text type="secondary">ตอบความเห็นของ {parentComment.user.username || "ถูกลบ"}</Text>;
                         }
                         return null;
                     })()}

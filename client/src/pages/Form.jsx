@@ -260,8 +260,8 @@ function Changepass() {
   };
 
   return (
-    <div style={{ maxWidth: 400, margin: "0 auto" }}>
-      <h2 style={{ textAlign: "center", marginBottom: 24 }}>เปลี่ยนรหัสผ่าน</h2>
+    <div className='form' style={{ maxWidth: 400, margin: "0 auto" }}>
+      {/* <h2 style={{ textAlign: "center", marginBottom: 24 }}>เปลี่ยนรหัสผ่าน</h2> */}
       <Form
         layout="vertical"
         onFinish={onFinish}

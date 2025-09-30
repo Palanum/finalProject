@@ -22,7 +22,7 @@ function RestrictedContent({ children, requiredRole, bannedMessage }) {
             if (isBanned) {
                 message.error(
                     <div>
-                        {bannedMessage || "⚠️ Your account is banned. You cannot use this feature."}
+                        {bannedMessage || "⚠️ บัญชีของคุณถูกระงับการใช้งาน"}
                         {dateUnban && (
                             <>
                                 <br />
@@ -33,7 +33,7 @@ function RestrictedContent({ children, requiredRole, bannedMessage }) {
                 );
 
             } else if (noRole) {
-                message.error("🚫 You don’t have permission to access this content.");
+                message.error("โปรดติดต่อผู้ดูแลระบบ");
             }
             notifiedRef.current = true;
         }

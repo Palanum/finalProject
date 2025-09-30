@@ -473,6 +473,7 @@ router.get('/getData/categories', async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 });
+
 router.get('/getData/ingredients', async (req, res) => {
   try {
     const ingredients = await DataIngredient.findAll({ attributes: ['name_th'] });
@@ -585,7 +586,7 @@ router.post('/addnew', upload.fields([
     }
 
     await t.commit();
-    res.json({ msg: 'Recipe added successfully!', RecipeID });
+    res.json({ msg: 'การแชร์เสร็จสมบูรณ์', RecipeID });
   } catch (err) {
     await t.rollback();
     console.error('Error adding recipe:', err.stack);
@@ -1066,7 +1067,7 @@ router.put('/:id/edit', upload.fields([
     }
 
     await t.commit();
-    res.json({ msg: 'Recipe updated successfully!', RecipeID });
+    res.json({ msg: 'เมนูถูกอัพเดทแล้ว!', RecipeID });
   } catch (err) {
     await t.rollback();
     console.error('Error editing recipe:', err);

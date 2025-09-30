@@ -5,6 +5,16 @@ import { AuthContext } from '../context/AuthContext';
 import { Changepass } from "./Form";
 import { List, Avatar, Button, Card, Space, Spin, Popconfirm, message, Modal, Tag, Pagination } from "antd";
 import { EditOutlined, DeleteOutlined } from "@ant-design/icons";
+
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
+import { library } from '@fortawesome/fontawesome-svg-core'
+
+import { fas } from '@fortawesome/free-solid-svg-icons'
+import { far } from '@fortawesome/free-regular-svg-icons'
+import { fab } from '@fortawesome/free-brands-svg-icons'
+
+library.add(fas, far, fab)
+
 const Profile = () => {
     const { user } = useContext(AuthContext);
     const [showChangePass, setShowChangePass] = useState(false);
@@ -24,30 +34,39 @@ const Profile = () => {
             <div className='profile-sidebar'>
                 <div className='sidebar-container po-stick'>
                     <ul className='flex flex-column gap-2'>
-                        <li><a href="#profile">โปรไฟล์</a></li>
-                        <li><a href="#favorite">รายการโปรด</a></li>
+                        <li><a href="#profile">ข้อมูลของคุณ <FontAwesomeIcon icon="fa-regular fa-user" /></a></li>
+                        <li><a href="#favorite">รายการโปรด <FontAwesomeIcon icon="fa-regular fa-star" /></a></li>
                         <li><a href="#myRecipe">สูตรของฉัน</a></li>
-                        <li><a href="#alarm">การแจ้งเตือน</a></li>
+                        <li><a href="#alarm">การแจ้งเตือน <FontAwesomeIcon icon="fa-regular fa-bell" /></a></li>
                     </ul>
                 </div>
             </div>
             <div className='profile-container flex-1'>
                 <section id='profile' className='profile-section'>
-                    <h3>โปรไฟล์ของฉัน</h3>
+                    <h2 className="text-center">ข้อมูลของคุณ</h2>
                     {user ? (
                         <div className="profile-dashboard">
                             <div className="profile-info">
-                                <p><strong>ชื่อผู้ใช้:</strong> {user.username}</p>
-                                <p><strong>อีเมล:</strong> {user.email}</p>
+                                <p className="text-center"><strong>ชื่อผู้ใช้:</strong> {user.username}</p>
+                                <p className="text-center"><strong>อีเมล:</strong> {user.email}</p>
+                                <div className="flex align-center just-center">
+                                    <strong>เปลี่นนรหัสผ่าน</strong>
+                                    <Button type="link" onClick={() => setShowChangePass(!showChangePass)}>
+                                        คลิก
+                                    </Button>
+                                </div>
+
+                                {/* <button
+                                    className="btn"
+                                    style={{ margin: 'auto' }}
+                                    onClick={() => setShowChangePass(!showChangePass)}
+                                >
+                                    เปลี่ยนรหัสผ่าน
+                                </button> */}
                             </div>
-                            <button
-                                className="btn"
-                                onClick={() => setShowChangePass(!showChangePass)}
-                            >
-                                เปลี่ยนรหัสผ่าน
-                            </button>
+
                             {showChangePass && (
-                                <div className="changepass-form-wrapper">
+                                <div className="changepass-form-wrapper mt-2">
                                     <Changepass />
                                 </div>
                             )}
@@ -325,7 +344,7 @@ function AlarmSection() {
             text = "บันทึกสูตรของคุณเป็นรายการโปรด";
         } else if (alarm.type === "comment") {
             color = "purple";
-            text = "แสดงความคิดเห็นในสูตรของคุณ";
+            text = "มีการแสดงความคิดเห็นในสูตรของคุณ";
         } else if (alarm.type === "alarm") {
             color = "red";
             text = "การแจ้งเตือน จากผู้ดูแลระบบ";
