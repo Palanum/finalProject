@@ -3,7 +3,7 @@ import { useLocation } from 'react-router-dom';
 import './AdminPage.css'
 import './Profile.css'
 import { AuthContext } from '../context/AuthContext';
-import { Button, Card, Checkbox, Col, Form, Input, message, Modal, Pagination, Popconfirm, Row, Select, Space, Spin, Table, Tag } from "antd";
+import { Button, Card, Checkbox, Col, Form, Input, Image, message, Modal, Pagination, Popconfirm, Row, Select, Space, Spin, Table, Tag } from "antd";
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { library } from '@fortawesome/fontawesome-svg-core'
@@ -851,6 +851,8 @@ function ReportSection() {
     const [search, setSearch] = useState("");
     const [selectedReport, setSelectedReport] = useState(null);
     const [modalVisible, setModalVisible] = useState(false);
+    const [previewImage, setPreviewImage] = useState(null);
+    const [previewVisible, setPreviewVisible] = useState(false);
 
     const [currentPage, setCurrentPage] = useState(1);
     const pageSize = 5;
@@ -1027,23 +1029,24 @@ function ReportSection() {
                         <div style={{ marginTop: 16 }}>
                             <b>หลักฐาน:</b>
                             {selectedReport.evidences?.length > 0 ? (
-                                <ul style={{ listStyle: "none", padding: 0 }}>
+                                <ul className="flex gap-2" style={{ listStyle: "none", padding: 0 }}>
                                     {selectedReport.evidences.map((e) => {
                                         const isImage = e.file_type?.startsWith("image");
                                         return (
                                             <li key={e.EvidenceID} style={{ marginBottom: 8 }}>
                                                 {isImage ? (
-                                                    <img
+                                                    <Image
                                                         src={e.file_url}
                                                         alt={e.file_type || "Evidence"}
                                                         style={{
-                                                            maxWidth: "200px",
-                                                            maxHeight: "200px",
-                                                            borderRadius: "8px",
+                                                            maxWidth: 200,
+                                                            maxHeight: 200,
+                                                            borderRadius: 8,
                                                             border: "1px solid #ddd",
-                                                            display: "block",
+                                                            objectFit: "cover",
                                                         }}
                                                     />
+
                                                 ) : (
                                                     <a
                                                         href={e.file_url}

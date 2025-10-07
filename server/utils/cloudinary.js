@@ -2,6 +2,7 @@ const cloudinary = require('../config/cloudinary');
 const multer = require('multer');
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
+const streamifier = require('streamifier');
 
 function uploadImage(buffer, options = {}) {
     return new Promise((resolve, reject) => {

@@ -46,7 +46,7 @@ export default function Home() {
               <div className="full-height flex">
                 <Card
                   hoverable
-                  className="flex flex-column flex-1"
+                  className="flex flex-column flex-1 pt-3"
                   cover={
                     <img
                       alt={recipe.Title}

@@ -24,7 +24,7 @@ const {
 } = require('../models');
 
 const sequelize = require('../db'); // ✅ correct
-const { Op } = require('sequelize');
+const { Op, Sequelize } = require('sequelize');
 
 const USDA_API_KEY = process.env.USDA_API_KEY;
 
@@ -630,14 +630,42 @@ router.get('/search', async (req, res) => {
   try {
     const where = {};
 
+    const includeModels = [
+      { model: User, attributes: ['id', 'username'] },
+      { model: Category, attributes: ['Name'], through: { attributes: [] } },
+    ];
+    if (includeIngredient === 'true') {
+      includeModels.push({
+        model: Ingredient,
+        include: [{ model: DataIngredient, attributes: ['name_eng', 'name_th'] }],
+      });
+    }
+    const orConditions = [];
     // Text search
     if (q) {
-      const orConditions = [
-        { Title: { [Op.like]: `%${q}%` } },
-        { '$User.username$': { [Op.like]: `%${q}%` } },
-        { '$Categories.Name$': { [Op.like]: `%${q}%` } },
-      ];
+      orConditions.push({ Title: { [Op.like]: `%${q}%` } });
+      orConditions.push({ '$User.username$': { [Op.like]: `%${q}%` } });
+      const matchingCategories = await Category.findAll({
+        where: { Name: { [Op.like]: `%${q}%` } },
+        include: [
+          {
+            model: Recipe,
+            attributes: ['RecipeID'],
+            through: { attributes: [] },
+          },
+        ],
+      });
+      const categoryRecipeIds = new Set();
+      matchingCategories.forEach(cat => {
+        (cat.Recipes || []).forEach(r => categoryRecipeIds.add(r.RecipeID));
+      });
 
+      if (categoryRecipeIds.size === 0) {
+        // No match → use dummy ID to yield no rows
+        orConditions.push({ RecipeID: -1 });
+      } else {
+        orConditions.push({ RecipeID: { [Op.in]: Array.from(categoryRecipeIds) } });
+      }
       // If includeIngredient is true, also search in ingredients
       if (includeIngredient === 'true') {
         orConditions.push(
@@ -647,7 +675,9 @@ router.get('/search', async (req, res) => {
       }
 
 
-      where[Op.or] = orConditions;
+      if (orConditions.length > 0) {
+        where[Op.or] = orConditions;
+      }
     }
 
     // Time filter
@@ -657,21 +687,6 @@ router.get('/search', async (req, res) => {
       where.time = { [Op.gte]: Number(minTime) };
     } else if (maxTime) {
       where.time = { [Op.lte]: Number(maxTime) };
-    }
-
-    const includeModels = [
-      { model: User, attributes: ['id', 'username'] },
-      { model: Category, attributes: ['Name'], through: { attributes: [] } },
-    ];
-
-    // Include Ingredients if includeIngredient = true
-    if (includeIngredient === 'true') {
-      includeModels.push({
-        model: Ingredient,
-        include: [
-          { model: DataIngredient, attributes: ['name_eng', 'name_th'] }
-        ]
-      });
     }
 
     const recipes = await Recipe.findAll({

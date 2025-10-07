@@ -190,7 +190,7 @@ const RecipesAndSearchPage = () => {
               <div className="full-height flex">
                 <Card
                   hoverable
-                  className="flex flex-column flex-1"
+                  className="flex flex-column flex-1 pt-2 pl-3 pr-3"
                   cover={<img alt={recipe.Title} className='card-cover' src={recipe.ImageURL || "/placeholder.png"} />}
                   onClick={() => navigate(`/recipes/${recipe.RecipeID}`)}
                 >
