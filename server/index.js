@@ -2,21 +2,15 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
-const { sequelize, User } = require('./models'); // make sure User is imported
-const { sendAlarmRequest } = require('./utils/alarmUser');
-
-const mainRoute = require('./routes/main');
-const userRoute = require('./routes/user');
-const recipeRoute = require('./routes/recipe');
-const outsourceRoute = require('./routes/outsource');
+const { sequelize } = require('./models');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
 // ===== Middleware ===== //
 app.use(cors({ origin: 'http://localhost:5173', credentials: true }));
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.json({ limit: '50mb' })); //use json
+// app.use(express.urlencoded({ limit: '50mb', extended: true }));//if use default form
 
 app.use(session({
   secret: process.env.SESSION_SECRET,
@@ -26,34 +20,25 @@ app.use(session({
 }));
 
 // ===== Auto-unban middleware ===== //
-app.use(async (req, res, next) => {
-  if (!req.session?.user) return next();
-
-  try {
-    const user = await User.findByPk(req.session.user.id);
-    if (user && user.status === 'banned' && user.stat_update <= new Date()) {
-      console.log(`Auto-unbanning user ID ${user.id}`);
-      user.status = 'normal';
-      user.stat_update = new Date();
-      await user.save();
-
-      // Optional: notify user via alarm
-      await sendAlarmRequest(user.id, 'การระงับการใช้งานถูกปลดแล้ว');
-    }
-  } catch (err) {
-    console.error('Error in auto-unban middleware:', err);
-  }
-
-  next();
-});
+const autoUnban = require('./middleware/autoUnban')
+app.use(autoUnban);
 
 // ===== Routes ===== //
+const mainRoute = require('./routes/main');
+const userRoute = require('./routes/user');
+const recipeRoute = require('./routes/recipe');
+const outsourceRoute = require('./routes/outsource');
+
 app.use('/api', mainRoute);
 app.use('/api/users', userRoute);
 app.use('/api/recipes', recipeRoute);
 app.use('/api/outsource', outsourceRoute);
 
 // ===== Error Handling ===== //
+app.use((req, res, next) => {
+  res.status(404).json({ message: '404 Not found' });
+});
+
 app.use((err, req, res, next) => {
   console.error(err);
   res.status(500).json({ error: 'Internal server error' });

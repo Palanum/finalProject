@@ -1,6 +1,5 @@
 const express = require('express');
 const router = express.Router();
-const pool = require('../db');
 const axios = require('axios');
 const multer = require('multer');
 const cloudinary = require('../config/cloudinary');
@@ -643,8 +642,14 @@ router.get('/search', async (req, res) => {
     const orConditions = [];
     // Text search
     if (q) {
-      orConditions.push({ Title: { [Op.like]: `%${q}%` } });
-      orConditions.push({ '$User.username$': { [Op.like]: `%${q}%` } });
+
+      const searchTerms = q
+        .split(' ')
+        .map(term => term.trim())
+
+      orConditions.push({ Title: { [Op.like]: `%${q}%` } });//title
+      orConditions.push({ '$User.username$': { [Op.like]: `%${q}%` } });//user
+
       const matchingCategories = await Category.findAll({
         where: { Name: { [Op.like]: `%${q}%` } },
         include: [
@@ -660,18 +665,24 @@ router.get('/search', async (req, res) => {
         (cat.Recipes || []).forEach(r => categoryRecipeIds.add(r.RecipeID));
       });
 
-      if (categoryRecipeIds.size === 0) {
-        // No match → use dummy ID to yield no rows
-        orConditions.push({ RecipeID: -1 });
-      } else {
+      if (categoryRecipeIds.size > 0) {
         orConditions.push({ RecipeID: { [Op.in]: Array.from(categoryRecipeIds) } });
       }
       // If includeIngredient is true, also search in ingredients
       if (includeIngredient === 'true') {
-        orConditions.push(
-          { '$Ingredients.DataIngredient.name_eng$': { [Op.like]: `%${q}%` } },
-          { '$Ingredients.DataIngredient.name_th$': { [Op.like]: `%${q}%` } }
-        );
+
+        const andIngredientConditions = searchTerms.map(term => ({
+          [Op.or]: [
+            { '$Ingredients.DataIngredient.name_eng$': { [Op.like]: `%${term}%` } },
+            { '$Ingredients.DataIngredient.name_th$': { [Op.like]: `%${term}%` } },
+          ],
+        }));
+
+        orConditions.push({ [Op.or]: andIngredientConditions });
+        // orConditions.push(
+        //   { '$Ingredients.DataIngredient.name_eng$': { [Op.like]: `%${q}%` } },
+        //   { '$Ingredients.DataIngredient.name_th$': { [Op.like]: `%${q}%` } }
+        // );
       }
 
 

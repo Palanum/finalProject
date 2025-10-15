@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Input, Card, Tag, Row, Col, Slider, Switch, Button, InputNumber } from "antd";
+import { Input, Card, Tag, Row, Col, Slider, Switch, Button, Tooltip, InputNumber } from "antd";
 import '../components/Button.css';
 import './Search.css';
 const { Meta } = Card;
@@ -82,26 +82,28 @@ const RecipesAndSearchPage = () => {
 
       {/* Basic search */}
       <div className="search-container flex gap-2 align-center mb-2">
-        <Search
-          placeholder="ค้นหาสูตรอาหาร..."
-          allowClear
-          enterButton={
-            <Button
-              type="primary"
-              style={{
-                backgroundColor: "var(--btn-g)",
-                color: "var(--white)",
-                padding: "0.5rem 1rem",
-                boxShadow: "0px 1px 2px rgba(166, 175, 195, 0.25)",
-              }}
-            >
-              ค้นหา
-            </Button>
-          }
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          onSearch={onSearch}
-        />
+        <Tooltip placement="topLeft" trigger={['focus']} title={includeIngredient ? "อยากได้เมนูที่ใช้ กุ้งกับหมู พิมพ์ 'กุ้ง หมู' ได้เลย" : ""} >
+          <Search
+            placeholder="ค้นหาสูตรอาหาร..."
+            allowClear
+            enterButton={
+              <Button
+                type="primary"
+                style={{
+                  backgroundColor: "var(--btn-g)",
+                  color: "var(--white)",
+                  padding: "0.5rem 1rem",
+                  boxShadow: "0px 1px 2px rgba(166, 175, 195, 0.25)",
+                }}
+              >
+                ค้นหา
+              </Button>
+            }
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onSearch={onSearch}
+          />
+        </Tooltip>
         <Button className="link-btn link-green" type="link" onClick={() => setShowAdvanced(!showAdvanced)}>
           {showAdvanced ? "ซ่อนตัวกรองขั้นสูง" : "ตัวกรองขั้นสูง"}
         </Button>
