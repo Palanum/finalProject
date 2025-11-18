@@ -598,7 +598,10 @@ export default function Recipespage() {
                     <Row gutter={[16, 16]}>
                         <Col span={24}>
                             <Card title="Video" variant={false}>
-                                <Videoiframe videoURL={recipe.videoURL} />
+                                <div className="flex just-center full-width">
+                                    <Videoiframe videoURL={recipe.videoURL} />
+                                </div>
+
                             </Card>
                         </Col>
                     </Row>

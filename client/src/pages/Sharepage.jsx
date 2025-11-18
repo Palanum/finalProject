@@ -21,7 +21,7 @@ import {
   Col
 } from 'antd';
 import axios from 'axios';
-
+import Videoiframe from '../components/Videoiframe';
 const { TextArea } = Input;
 
 export default function Sharepage({ initialData = null, mode = "create" }) {
@@ -483,11 +483,15 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
 
         {/* Video */}
         <Form.Item label="วิดีโอสูตรอาหาร" name="video" rules={[{ type: "url" }]} {...formItemLayout}>
-          <Input placeholder="Video URL (YouTube, Vimeo, TikTok...)" />
+          <Input placeholder="Video URL (YouTube, Vimeo, facebook)" />
         </Form.Item>
         <Form.Item shouldUpdate>
           {({ getFieldValue }) =>
-            getFieldValue("video") ? <VideoPreview url={getFieldValue("video")} /> : null
+            getFieldValue("video") ? (
+              <div style={{ display: "flex", justifyContent: "center" }}>
+                <Videoiframe videoURL={getFieldValue("video")} />
+              </div>
+            ) : null
           }
         </Form.Item>
 
@@ -512,66 +516,4 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
     </div>
   );
 }
-
-function getEmbedUrl(url) {
-  if (!url) return null;
-
-  try {
-    // YouTube
-    if (url.includes("youtube.com/watch")) {
-      const videoId = new URL(url).searchParams.get("v");
-      if (videoId) return `https://www.youtube.com/embed/${videoId}`;
-    }
-    if (url.includes("youtu.be/")) {
-      const videoId = url.split("youtu.be/")[1].split(/[?&]/)[0];
-      return `https://www.youtube.com/embed/${videoId}`;
-    }
-
-    // Vimeo
-    if (url.includes("vimeo.com/")) {
-      const videoId = url.split("vimeo.com/")[1].split(/[?&]/)[0];
-      return `https://player.vimeo.com/video/${videoId}`;
-    }
-
-    // TikTok (embed)
-    if (url.includes("tiktok.com/")) {
-      return url.replace("/video/", "/embed/video/");
-    }
-
-    // Facebook
-    if (url.includes("facebook.com/")) {
-      return `https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(url)}`;
-    }
-
-    return null; // unsupported link
-  } catch (err) {
-    console.error("Invalid video URL", err);
-    return null;
-  }
-}
-
-
-const VideoPreview = ({ url }) => {
-  const [embedUrl, setEmbedUrl] = useState(null);
-
-  useEffect(() => {
-    setEmbedUrl(getEmbedUrl(url));
-  }, [url]);
-
-  if (!embedUrl) return null;
-
-  return (
-    <div style={{ marginTop: 8 }}>
-      <iframe
-        width="360"
-        height="215"
-        src={embedUrl}
-        title="Video Preview"
-        frameBorder="0"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-      ></iframe>
-    </div>
-  );
-};
 
