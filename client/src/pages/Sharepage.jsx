@@ -482,17 +482,32 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
 
 
         {/* Video */}
-        <Form.Item label="วิดีโอสูตรอาหาร" name="video" rules={[{ type: "url" }]} {...formItemLayout}>
-          <Input placeholder="Video URL (YouTube, Vimeo, facebook)" />
+        <Form.Item label="วิดีโอสูตรอาหาร" name="video" rules={[{ type: "url", message: "กรุณากรอก URL ที่ถูกต้อง" }]} {...formItemLayout}>
+          <Input placeholder="Video URL (YouTube, Vimeo, Facebook)" />
         </Form.Item>
+
         <Form.Item shouldUpdate>
-          {({ getFieldValue }) =>
-            getFieldValue("video") ? (
-              <div style={{ display: "flex", justifyContent: "center" }}>
-                <Videoiframe videoURL={getFieldValue("video")} />
+          {({ getFieldValue }) => {
+            const url = getFieldValue("video");
+
+            if (!url) return null;
+
+            // Check if the URL is supported
+            const allowedDomains = ["youtube.com", "youtu.be", "vimeo.com", "facebook.com"];
+            const isSupported = allowedDomains.some((domain) => url.includes(domain));
+
+            return (
+              <div style={{ display: "flex", justifyContent: "center", flexDirection: "column", alignItems: "center" }}>
+                {isSupported ? (
+                  <Videoiframe videoURL={url} />
+                ) : (
+                  <div style={{ color: "red", marginTop: 12 }}>
+                    หา URL ไม่เจอ เนื่องจากลิงก์วิดีโอไม่รองรับ หรือไม่เปิดเป็นสาธารณะ
+                  </div>
+                )}
               </div>
-            ) : null
-          }
+            );
+          }}
         </Form.Item>
 
         {/* Submit */}
