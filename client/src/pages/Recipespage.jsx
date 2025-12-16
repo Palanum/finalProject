@@ -575,9 +575,9 @@ export default function Recipespage() {
                                 dataSource={recipe.instructions}
                                 renderItem={(inst, index) => (
                                     <List.Item>
-                                        <Paragraph>
+                                        <Paragraph className="flex flex-column gap-2" style={{marginBottom:' 0.5rem'}}>
                                             {index + 1}. {inst.text}
-                                            <div className="flex align-center gap-2 mt-2">
+                                            <div className="flex align-center gap-2">
                                                 {inst.images.map((img, j) => (
                                                     <Image
                                                         key={j}
