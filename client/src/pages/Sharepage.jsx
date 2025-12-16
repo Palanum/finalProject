@@ -404,13 +404,18 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
         <Form.List name="stepsList">
           {(fields, { add, remove }) => (
             <Form.Item label="ขั้นตอนการปรุงอาหาร" {...formItemLayout}>
-              {fields.map(({ key, name, ...rest }) => (
-                <Form.Item shouldUpdate style={{ marginBottom: '.5rem' }} key={key}>
+              {fields.map(({ key, name, ...rest }, index) => (
+                <Form.Item 
+                shouldUpdate 
+                style={{ 
+                  marginBottom: '.5rem' ,
+                  borderBottom: index !== fields.length - 1 ? '1px solid #ccc' : 'none'
+                }} 
+                key={key}>
                   {() => {
                     const stepDescription = form.getFieldValue(['stepsList', name, 'stepDescription']) || '';
                     const stepImages = form.getFieldValue(['stepsList', name, 'stepImages']) || [];
                     const hasContent = stepDescription.trim() || stepImages.length > 0;
-
                     return (
                       <div className="step-block flex">
                         <div className="flex flex-column flex-1">

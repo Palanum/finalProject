@@ -254,7 +254,7 @@ function chooseBestFood(rawFoods, engName, thaiName = '') {
   );
   if (match) {
     console.log('✅ Exact match found:');
-    console.dir(match, { depth: 1 });
+    // console.dir(match, { depth: 1 });
     return match;
   }
 
@@ -277,7 +277,7 @@ function chooseBestFood(rawFoods, engName, thaiName = '') {
   });
   if (match) {
     console.log('🔹 Partial match found (type filter):');
-    console.dir(match, { depth: 0 });
+    // console.dir(match, { depth: 0 });
     return match;
   }
 
@@ -292,13 +292,13 @@ function chooseBestFood(rawFoods, engName, thaiName = '') {
   match = rawFoods.find(f => categoryMap[type].includes(f.foodCategory));
   if (match) {
     console.log(`🍃 Fallback to ${type} category:`);
-    console.dir(match, { depth: 0 });
+    // console.dir(match, { depth: 0 });
     return match;
   }
 
   // 4️⃣ Final fallback
   console.log('⚠️ Fallback to first raw food:');
-  console.dir(rawFoods[0], { depth: 0 });
+  // console.dir(rawFoods[0], { depth: 0 });
   return rawFoods[0];
 }
 
@@ -896,7 +896,7 @@ router.get('/:id', async (req, res) => {
       },
       comments: commentsTree
     }
-    console.dir(sentData, { depth: null });
+    // console.dir(sentData, { depth: null });
     res.json(sentData);
 
   } catch (err) {
