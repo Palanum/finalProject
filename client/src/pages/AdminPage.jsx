@@ -40,7 +40,7 @@ export default function AdminPage() {
                     </ul>
                 </div>
             </div>
-            <div className='profile-container flex-1 admin-section-container'>
+            <div className='profile-container flex-1 admin-section-container set-max-w full-m-0-auto'>
                 <Dashboard />
                 <UserManagement />
                 <RecipeManagement />

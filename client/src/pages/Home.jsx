@@ -31,7 +31,7 @@ export default function Home() {
           />
         </div>
       </section>
-      <section className='card-section flex flex-column gap-1 align-center pt-3 pb-3'>
+      <section className='card-section flex flex-column gap-1 align-center pt-3 pb-3 set-max-w full-m-0-auto'>
         <h3>สูตรอาหารแนะนำประจำวันนี้</h3>
         <Row gutter={[16, 16]} className='full-width p-3' justify="center">
           {recipes.map((recipe) => (

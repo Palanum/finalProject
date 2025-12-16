@@ -187,7 +187,7 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
 
   // ---------------- Render ----------------
   return (
-    <div className="sharepage">
+    <div className="sharepage set-max-w full-m-0-auto">
       <h2 className="sharepage-title mb-3">Share Your Recipe</h2>
 
       <Form

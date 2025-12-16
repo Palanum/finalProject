@@ -43,7 +43,7 @@ export default function NavBar({ isLoggedIn }) {
 
   return (
     <nav className={`nav-bar ${showNavbar ? 'visible' : 'hidden'}`}>
-      <div className="nav-content">
+      <div className="nav-content set-max-w">
         {/* Left group */}
         <ul className="nav-group nav-left">
           <li><Link to="/">หน้าหลัก</Link></li>

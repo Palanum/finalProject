@@ -77,7 +77,7 @@ const RecipesAndSearchPage = () => {
   };
 
   return (
-    <div className="recipes-page p-3">
+    <div className="recipes-page p-3 set-max-w full-m-0-auto">
       <h1>{query ? "ผลการค้นหา" : "สูตรอาหารทั้งหมด"}</h1>
 
       {/* Basic search */}

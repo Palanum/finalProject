@@ -41,7 +41,7 @@ const Profile = () => {
                     </ul>
                 </div>
             </div>
-            <div className='profile-container flex-1'>
+            <div className='profile-container flex-1 set-max-w full-m-0-auto'>
                 <section id='profile' className='profile-section'>
                     <h2 className="text-center">ข้อมูลของคุณ</h2>
                     {user ? (

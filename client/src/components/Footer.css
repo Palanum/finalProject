@@ -1,8 +1,9 @@
-.foot-container{
+.foot-container {
     background-color: var(--yellow-yolk);
     padding: 1rem;
 }
-.credit-text{
+
+.credit-text {
     font-size: .7rem;
     font-weight: 700;
 }

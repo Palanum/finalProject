@@ -326,310 +326,318 @@ export default function Recipespage() {
         }
     };
 
-    if (loading) return <Spin style={{ display: "block", margin: "50px auto" }} />;
+    if (loading) return (
+        <Spin style={{ display: "block", margin: "50px auto" }} />
+    );
 
-    if (!recipe) return <Text type="danger">Recipe not found</Text>;
-    // console.dir(recipe);
+    if (recipe.error) return (
+        <div className="set-max-w full-m-0-auto p-3">
+            <Text type="danger">Recipe not found</Text>
+        </div>
+    );
+    console.dir(recipe);
     return (
-        <Card>
-            <Title level={2} style={{ textAlign: "center" }}>
-                {recipe.Title}
-            </Title>
-            <Space style={{ marginBottom: 16 }}>
-                <Button danger onClick={handleOpenReport}>รายงาน</Button>
-            </Space>
+        <div className="set-max-w full-m-0-auto">
+            <Card>
+                <Title level={2} style={{ textAlign: "center" }}>
+                    {recipe.Title}
+                </Title>
+                <Space style={{ marginBottom: 16 }}>
+                    <Button danger onClick={handleOpenReport}>รายงาน</Button>
+                </Space>
 
-            <Modal
-                title="Report Recipe"
-                open={reportModalVisible}
-                onCancel={handleCloseReport}
-                onOk={() => reportForm.submit()}
-            >
-                <Form
-                    form={reportForm}
-                    layout="vertical"
-                    onFinish={handleSubmitReport}
+                <Modal
+                    title="Report Recipe"
+                    open={reportModalVisible}
+                    onCancel={handleCloseReport}
+                    onOk={() => reportForm.submit()}
                 >
-                    {/* Type of Report */}
-                    <Form.Item
-                        label="Type of Report"
-                        name="type"
-                        rules={[{ required: true, message: "Please select report type" }]}
+                    <Form
+                        form={reportForm}
+                        layout="vertical"
+                        onFinish={handleSubmitReport}
                     >
-                        <Select placeholder="Select type">
-                            <Select.Option value="user">Name of User</Select.Option>
-                            <Select.Option value="recipe">Recipe Title</Select.Option>
-                            <Select.Option value="ingredient">Ingredient</Select.Option>
-                            <Select.Option value="instruction">Instruction</Select.Option>
-                            <Select.Option value="recipe_image">Image of Recipe</Select.Option>
+                        {/* Type of Report */}
+                        <Form.Item
+                            label="Type of Report"
+                            name="type"
+                            rules={[{ required: true, message: "Please select report type" }]}
+                        >
+                            <Select placeholder="Select type">
+                                <Select.Option value="user">Name of User</Select.Option>
+                                <Select.Option value="recipe">Recipe Title</Select.Option>
+                                <Select.Option value="ingredient">Ingredient</Select.Option>
+                                <Select.Option value="instruction">Instruction</Select.Option>
+                                <Select.Option value="recipe_image">Image of Recipe</Select.Option>
 
-                            {recipe.categories.length > 0
-                                ? <Select.Option value="category">Tag</Select.Option>
-                                : null}
-                            <Select.Option value="instruction_image">Image of Instruction</Select.Option>
-                            {recipe.videoURL
-                                ? <Select.Option value="video">Video</Select.Option>
-                                : null}
+                                {recipe.categories.length > 0
+                                    ? <Select.Option value="category">Tag</Select.Option>
+                                    : null}
+                                <Select.Option value="instruction_image">Image of Instruction</Select.Option>
+                                {recipe.videoURL
+                                    ? <Select.Option value="video">Video</Select.Option>
+                                    : null}
 
-                            {recipe.comments.length > 0
-                                ? <Select.Option value="comment">Comment/Reply</Select.Option>
-                                : null}
+                                {recipe.comments.length > 0
+                                    ? <Select.Option value="comment">Comment/Reply</Select.Option>
+                                    : null}
 
-                            <Select.Option value="other">Other</Select.Option>
-                        </Select>
-                    </Form.Item>
+                                <Select.Option value="other">Other</Select.Option>
+                            </Select>
+                        </Form.Item>
 
-                    {/* Custom Type for "Other" */}
-                    <Form.Item shouldUpdate>
-                        {() => reportForm.getFieldValue("type") === "other" && (
-                            <Form.Item
-                                label="Custom Type"
-                                name="customType"
-                                rules={[
-                                    { required: true, message: "Please enter a custom type" },
-                                    { max: 30, message: "Maximum 30 characters" },
-                                ]}
-                            >
-                                <Input placeholder="Enter custom type (max 30 chars)" />
-                            </Form.Item>
-                        )}
-                    </Form.Item>
-
-                    {/* Reported Element */}
-                    <Form.Item shouldUpdate>
-                        {({ getFieldValue }) => {
-                            const type = getFieldValue("type");
-                            if (!type) return null;
-
-                            // Multi-option types
-                            let options = [];
-                            let useRadioWithImages = false;
-                            if (type === "ingredient" && recipe.ingredients.length > 0) options = recipe.ingredients.map(i => ({ value: i.id, label: i.name }));
-                            if (type === "instruction" && recipe.instructions.length > 0) options = recipe.instructions.map(i => ({ value: i.id, label: i.text.slice(0, 30) + "..." }));
-                            if (type === "instruction_image" && recipe.instructions.some(i => i.images.length > 0)) {
-                                useRadioWithImages = true;
-                                options = recipe.instructions.flatMap(i =>
-                                    i.images.map(img => ({
-                                        value: img.id,
-                                        label: `Step ${i.id} Image`,
-                                        imgUrl: img.url
-                                    }))
-                                );
-                            }
-                            if (type === "comment" && recipe.comments.length > 0) options = recipe.comments.map(c => ({
-                                value: c.id,
-                                label: `${c.user.username}: ${c.content.slice(0, 30)}...`
-                            }));
-
-                            if (!options.length) return null;
-
-                            return (
+                        {/* Custom Type for "Other" */}
+                        <Form.Item shouldUpdate>
+                            {() => reportForm.getFieldValue("type") === "other" && (
                                 <Form.Item
-                                    label="เลือกสิ่งที่จะรายงาน"
-                                    name="reported_id"
-                                    rules={[{ required: true, message: "โปรดเลือกสิ่งที่รายงาน" }]}
+                                    label="Custom Type"
+                                    name="customType"
+                                    rules={[
+                                        { required: true, message: "Please enter a custom type" },
+                                        { max: 30, message: "Maximum 30 characters" },
+                                    ]}
                                 >
-                                    {useRadioWithImages ? (
-                                        <Radio.Group>
-                                            <Space direction="vertical">
-                                                {options.map(opt => (
-                                                    <Radio key={opt.value} value={opt.value}>
-                                                        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                                            <Image src={opt.imgUrl} alt={opt.label} width={80} />
-                                                            <span>{opt.label}</span>
-                                                        </div>
-                                                    </Radio>
-                                                ))}
-                                            </Space>
-                                        </Radio.Group>
-                                    ) : (
-                                        <Select placeholder="ตัวเลือก">
-                                            {options.map(opt => (
-                                                <Select.Option key={opt.value} value={opt.value}>
-                                                    {opt.label}
-                                                </Select.Option>
-                                            ))}
-                                        </Select>
-                                    )}
+                                    <Input placeholder="Enter custom type (max 30 chars)" />
                                 </Form.Item>
-                            );
-                        }}
-                    </Form.Item>
+                            )}
+                        </Form.Item>
 
-                    {/* Description */}
-                    <Form.Item
-                        label="รายละเอียด"
-                        name="description"
-                        rules={[{ required: true, message: "โปรดกรอกรายละเอียด" }]}
-                    >
-                        <Input.TextArea rows={4} placeholder="กรอกรายละเอียด" />
-                    </Form.Item>
+                        {/* Reported Element */}
+                        <Form.Item shouldUpdate>
+                            {({ getFieldValue }) => {
+                                const type = getFieldValue("type");
+                                if (!type) return null;
 
-                    {/* Upload Images */}
-                    <Form.Item
-                        label="Upload Images"
-                        name="images"
-                        valuePropName="fileList"
-                        getValueFromEvent={e => e && e.fileList}
-                    >
-                        <Upload
-                            listType="picture-card"
-                            accept="image/png, image/jpeg, image/jpg"
-                            beforeUpload={() => false}
-                            multiple>
-                            <div>
-                                <PlusOutlined />
-                                <div style={{ marginTop: 8 }}>Upload</div>
-                            </div>
-                        </Upload>
-                    </Form.Item>
-                </Form>
-            </Modal>
+                                // Multi-option types
+                                let options = [];
+                                let useRadioWithImages = false;
+                                if (type === "ingredient" && recipe.ingredients.length > 0) options = recipe.ingredients.map(i => ({ value: i.id, label: i.name }));
+                                if (type === "instruction" && recipe.instructions.length > 0) options = recipe.instructions.map(i => ({ value: i.id, label: i.text.slice(0, 30) + "..." }));
+                                if (type === "instruction_image" && recipe.instructions.some(i => i.images.length > 0)) {
+                                    useRadioWithImages = true;
+                                    options = recipe.instructions.flatMap(i =>
+                                        i.images.map(img => ({
+                                            value: img.id,
+                                            label: `Step ${i.id} Image`,
+                                            imgUrl: img.url
+                                        }))
+                                    );
+                                }
+                                if (type === "comment" && recipe.comments.length > 0) options = recipe.comments.map(c => ({
+                                    value: c.id,
+                                    label: `${c.user.username}: ${c.content.slice(0, 30)}...`
+                                }));
+
+                                if (!options.length) return null;
+
+                                return (
+                                    <Form.Item
+                                        label="เลือกสิ่งที่จะรายงาน"
+                                        name="reported_id"
+                                        rules={[{ required: true, message: "โปรดเลือกสิ่งที่รายงาน" }]}
+                                    >
+                                        {useRadioWithImages ? (
+                                            <Radio.Group>
+                                                <Space direction="vertical">
+                                                    {options.map(opt => (
+                                                        <Radio key={opt.value} value={opt.value}>
+                                                            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                                                                <Image src={opt.imgUrl} alt={opt.label} width={80} />
+                                                                <span>{opt.label}</span>
+                                                            </div>
+                                                        </Radio>
+                                                    ))}
+                                                </Space>
+                                            </Radio.Group>
+                                        ) : (
+                                            <Select placeholder="ตัวเลือก">
+                                                {options.map(opt => (
+                                                    <Select.Option key={opt.value} value={opt.value}>
+                                                        {opt.label}
+                                                    </Select.Option>
+                                                ))}
+                                            </Select>
+                                        )}
+                                    </Form.Item>
+                                );
+                            }}
+                        </Form.Item>
+
+                        {/* Description */}
+                        <Form.Item
+                            label="รายละเอียด"
+                            name="description"
+                            rules={[{ required: true, message: "โปรดกรอกรายละเอียด" }]}
+                        >
+                            <Input.TextArea rows={4} placeholder="กรอกรายละเอียด" />
+                        </Form.Item>
+
+                        {/* Upload Images */}
+                        <Form.Item
+                            label="Upload Images"
+                            name="images"
+                            valuePropName="fileList"
+                            getValueFromEvent={e => e && e.fileList}
+                        >
+                            <Upload
+                                listType="picture-card"
+                                accept="image/png, image/jpeg, image/jpg"
+                                beforeUpload={() => false}
+                                multiple>
+                                <div>
+                                    <PlusOutlined />
+                                    <div style={{ marginTop: 8 }}>Upload</div>
+                                </div>
+                            </Upload>
+                        </Form.Item>
+                    </Form>
+                </Modal>
 
 
 
-            <div style={{ textAlign: "center", marginBottom: 16 }}>
-                <Image
-                    src={recipe.ImageURL}
-                    alt={recipe.Title}
-                    width={300}
-                    style={{ borderRadius: 8 }}
+                <div style={{ textAlign: "center", marginBottom: 16 }}>
+                    <Image
+                        src={recipe.ImageURL}
+                        alt={recipe.Title}
+                        width={300}
+                        style={{ borderRadius: 8 }}
+                    />
+                </div>
+
+                {/* Jump navigation Tabs */}
+                <Tabs
+                    activeKey={activeKey}
+                    onChange={handleTabChange}
+                    style={{ marginBottom: 16 }}
+                    tabBarExtraContent={
+                        <Space>
+                            <span style={{ cursor: "pointer" }} onClick={toggleFavorite}>
+                                <FontAwesomeIcon icon={recipe.isFavorite ? ["fas", "star"] : ["far", "star"]} /> เพิ่มรายการโปรด
+                            </span>
+                            <span style={{ cursor: "pointer" }} onClick={toggleLike}>
+                                <FontAwesomeIcon icon={recipe.isLike ? ["fas", "thumbs-up"] : ["far", "thumbs-up"]} /> Like
+                            </span>
+                        </Space>
+                    }
+                    items={items}
                 />
-            </div>
-
-            {/* Jump navigation Tabs */}
-            <Tabs
-                activeKey={activeKey}
-                onChange={handleTabChange}
-                style={{ marginBottom: 16 }}
-                tabBarExtraContent={
-                    <Space>
-                        <span style={{ cursor: "pointer" }} onClick={toggleFavorite}>
-                            <FontAwesomeIcon icon={recipe.isFavorite ? ["fas", "star"] : ["far", "star"]} /> เพิ่มรายการโปรด
-                        </span>
-                        <span style={{ cursor: "pointer" }} onClick={toggleLike}>
-                            <FontAwesomeIcon icon={recipe.isLike ? ["fas", "thumbs-up"] : ["far", "thumbs-up"]} /> Like
-                        </span>
-                    </Space>
-                }
-                items={items}
-            />
 
 
-            {/* Description section */}
-            <div ref={descRef}>
-                <Row gutter={[16, 16]}>
-                    <Col span={24}>
-                        {recipe.categories.map((cat, i) => (
-                            <Tag color="green" key={i}>{cat.name}</Tag>
-                        ))}
-                    </Col>
-                </Row>
-
-                <Row gutter={[16, 16]} className="mt-2 mb-2">
-                    <Col span={12}>
-                        <Text strong>โดย: </Text><Text>{recipe.user.username}</Text>
-                    </Col>
-                    <Col span={12}>
-                        <Text strong>เวลาที่ใช้: </Text><Text>{recipe.time} minutes</Text>
-                    </Col>
-                </Row>
-
-                <Row gutter={[16, 16]}>
-                    <Col span={12}>
-                        <Title level={4}>วัตถุดิบ</Title>
-                        <List
-                            dataSource={recipe.ingredients}
-                            renderItem={ing => (
-                                <List.Item>
-                                    {ing.quantity} {ing.unit} - {ing.name}
-                                </List.Item>
-                            )}
-                            bordered
-                            size="small"
-                        />
-                    </Col>
-                    <Col span={12}>
-                        <Title level={4}>ข้อมูลโภชนาการ</Title>
-                        <List>
-                            <List.Item><Text strong>Calories:</Text> {recipe.nutrients.calories.toFixed(2)} kcal</List.Item>
-                            <List.Item><Text strong>Protein:</Text> {recipe.nutrients.protein.toFixed(2)} g</List.Item>
-                            <List.Item><Text strong>Fat:</Text> {recipe.nutrients.fat.toFixed(2)} g</List.Item>
-                            <List.Item><Text strong>Carbs:</Text> {recipe.nutrients.carbs.toFixed(2)} g</List.Item>
-                        </List>
-                    </Col>
-                </Row>
-            </div>
-            <div ref={instructionsRef} className="mt-2">
-                <Row gutter={[16, 16]}>
-                    <Col span={24}>
-                        <Title level={4}>ขั้นตอนการปรุงอาหาร</Title>
-                        <List
-                            dataSource={recipe.instructions}
-                            renderItem={(inst, index) => (
-                                <List.Item>
-                                    <Paragraph>
-                                        {index + 1}. {inst.text}
-                                        <div className="flex align-center gap-2 mt-2">
-                                            {inst.images.map((img, j) => (
-                                                <Image
-                                                    key={j}
-                                                    src={img.url}
-                                                    alt={`step ${j + 1}`}
-                                                    width={100}
-                                                    style={{ marginRight: 8 }}
-                                                />
-                                            ))}
-                                        </div>
-                                    </Paragraph>
-                                </List.Item>
-                            )}
-                            bordered
-                            size="small"
-                        />
-                    </Col>
-                </Row>
-            </div>
-
-
-            {/* Video section */}
-            {recipe.videoURL && (
-                <div ref={videoRef} className="mt-2">
+                {/* Description section */}
+                <div ref={descRef}>
                     <Row gutter={[16, 16]}>
                         <Col span={24}>
-                            <Card title="Video" variant={false}>
-                                <div className="flex just-center full-width">
-                                    <Videoiframe videoURL={recipe.videoURL} />
-                                </div>
+                            {recipe.categories.map((cat, i) => (
+                                <Tag color="green" key={i}>{cat.name}</Tag>
+                            ))}
+                        </Col>
+                    </Row>
 
-                            </Card>
+                    <Row gutter={[16, 16]} className="mt-2 mb-2">
+                        <Col span={12}>
+                            <Text strong>โดย: </Text><Text>{recipe.user.username}</Text>
+                        </Col>
+                        <Col span={12}>
+                            <Text strong>เวลาที่ใช้: </Text><Text>{recipe.time} minutes</Text>
+                        </Col>
+                    </Row>
+
+                    <Row gutter={[16, 16]}>
+                        <Col span={12}>
+                            <Title level={4}>วัตถุดิบ</Title>
+                            <List
+                                dataSource={recipe.ingredients}
+                                renderItem={ing => (
+                                    <List.Item>
+                                        {ing.quantity} {ing.unit} - {ing.name}
+                                    </List.Item>
+                                )}
+                                bordered
+                                size="small"
+                            />
+                        </Col>
+                        <Col span={12}>
+                            <Title level={4}>ข้อมูลโภชนาการ</Title>
+                            <List>
+                                <List.Item><Text strong>Calories:</Text> {recipe.nutrients.calories.toFixed(2)} kcal</List.Item>
+                                <List.Item><Text strong>Protein:</Text> {recipe.nutrients.protein.toFixed(2)} g</List.Item>
+                                <List.Item><Text strong>Fat:</Text> {recipe.nutrients.fat.toFixed(2)} g</List.Item>
+                                <List.Item><Text strong>Carbs:</Text> {recipe.nutrients.carbs.toFixed(2)} g</List.Item>
+                            </List>
                         </Col>
                     </Row>
                 </div>
-            )}
-            <div ref={commentRef} className="mt-2">
-                <Title level={4}>ความคิดเห็น</Title>
-                <CommentThread comments={recipe.comments} onReply={setReplyToCommentId} />
-                <div className="flex align-center gap-1 mt-1">
-                    {replyToCommentId && (() => {
-                        const parentComment = findCommentById(recipe.comments, replyToCommentId);
-                        if (parentComment) {
-                            return <Text type="secondary">ตอบความเห็นของ {parentComment.user.username || "ถูกลบ"}</Text>;
-                        }
-                        return null;
-                    })()}
-                    <Input
-                        placeholder="Write a comment..."
-                        value={newComment}
-                        onChange={e => setNewComment(e.target.value)}
-                        onPressEnter={() => handlePostComment(replyToCommentId)}
-                    />
-                    <Button type="primary" onClick={() => handlePostComment(replyToCommentId)}>
-                        {replyToCommentId ? "Reply" : "Post"}
-                    </Button>
+                <div ref={instructionsRef} className="mt-2">
+                    <Row gutter={[16, 16]}>
+                        <Col span={24}>
+                            <Title level={4}>ขั้นตอนการปรุงอาหาร</Title>
+                            <List
+                                dataSource={recipe.instructions}
+                                renderItem={(inst, index) => (
+                                    <List.Item>
+                                        <Paragraph>
+                                            {index + 1}. {inst.text}
+                                            <div className="flex align-center gap-2 mt-2">
+                                                {inst.images.map((img, j) => (
+                                                    <Image
+                                                        key={j}
+                                                        src={img.url}
+                                                        alt={`step ${j + 1}`}
+                                                        width={100}
+                                                        style={{ marginRight: 8 }}
+                                                    />
+                                                ))}
+                                            </div>
+                                        </Paragraph>
+                                    </List.Item>
+                                )}
+                                bordered
+                                size="small"
+                            />
+                        </Col>
+                    </Row>
                 </div>
-            </div>
-        </Card>
+
+
+                {/* Video section */}
+                {recipe.videoURL && (
+                    <div ref={videoRef} className="mt-2">
+                        <Row gutter={[16, 16]}>
+                            <Col span={24}>
+                                <Card title="Video" variant={false}>
+                                    <div className="flex just-center full-width">
+                                        <Videoiframe videoURL={recipe.videoURL} />
+                                    </div>
+
+                                </Card>
+                            </Col>
+                        </Row>
+                    </div>
+                )}
+                <div ref={commentRef} className="mt-2">
+                    <Title level={4}>ความคิดเห็น</Title>
+                    <CommentThread comments={recipe.comments} onReply={setReplyToCommentId} />
+                    <div className="flex align-center gap-1 mt-1">
+                        {replyToCommentId && (() => {
+                            const parentComment = findCommentById(recipe.comments, replyToCommentId);
+                            if (parentComment) {
+                                return <Text type="secondary">ตอบความเห็นของ {parentComment.user.username || "ถูกลบ"}</Text>;
+                            }
+                            return null;
+                        })()}
+                        <Input
+                            placeholder="Write a comment..."
+                            value={newComment}
+                            onChange={e => setNewComment(e.target.value)}
+                            onPressEnter={() => handlePostComment(replyToCommentId)}
+                        />
+                        <Button type="primary" onClick={() => handlePostComment(replyToCommentId)}>
+                            {replyToCommentId ? "Reply" : "Post"}
+                        </Button>
+                    </div>
+                </div>
+            </Card>
+        </div>
     );
 }
 

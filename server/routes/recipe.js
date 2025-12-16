@@ -757,17 +757,6 @@ router.get('/:id', async (req, res) => {
       }
     });
 
-    // --- Record a new view if none found ---
-    if (!existingView) {
-      await RecipeView.create({
-        RecipeID: recipeId,
-        UserID: userId,
-        sessionId: userId ? null : sessionId, // only store session for anonymous
-        view_at: new Date()
-      });
-    }
-
-
     const recipe = await Recipe.findByPk(recipeId, {
       include: [
         { model: User, attributes: ['id', 'username'] },
@@ -799,9 +788,16 @@ router.get('/:id', async (req, res) => {
       order: [[Comment, 'CreatedAt', 'ASC']] // <-- order comments here
     });
 
-
     if (!recipe) return res.status(404).json({ error: "Recipe not found" });
-
+    // --- Record a new view if none found ---
+    if (!existingView) {
+      await RecipeView.create({
+        RecipeID: recipeId,
+        UserID: userId,
+        sessionId: userId ? null : sessionId, // only store session for anonymous
+        view_at: new Date()
+      });
+    }
     // --- Build nested comments (safe two-pass) ---
     const commentsMap = new Map();
     const commentsTree = [];
