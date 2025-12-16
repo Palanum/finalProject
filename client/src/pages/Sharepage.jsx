@@ -335,7 +335,7 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
 
                     return (
                       <Space align="baseline" className='full-width'>
-                        <Form.Item {...rest} style={{ marginBottom: 0 }} name={[name, "name"]} rules={[{ required: true }]}>
+                        <Form.Item {...rest} style={{ marginBottom: 0 }} name={[name, "name"]} rules={[{ required: true, message: "โปรดใส่ชื่อวัตถุดิบ" }]}>
                           <AutoComplete
                             style={{ width: "30ch" }}
                             placeholder="ชื่อวัตถุดิบ"
@@ -350,11 +350,11 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
                           />
                         </Form.Item>
 
-                        <Form.Item {...rest} style={{ marginBottom: 0 }} name={[name, "quantity"]} rules={[{ required: true }]}>
+                        <Form.Item {...rest} style={{ marginBottom: 0 }} name={[name, "quantity"]} rules={[{ required: true, message: "โปรดใส่จำนวน" }]}>
                           <InputNumber placeholder="จำนวน" />
                         </Form.Item>
 
-                        <Form.Item {...rest} style={{ marginBottom: 0 }} name={[name, "unit"]} rules={[{ required: true }]}>
+                        <Form.Item {...rest} style={{ marginBottom: 0 }} name={[name, "unit"]} rules={[{ required: true, message: "โปรดเลือกหน่วยที่ใช้" }]}>
                           <Select
                             style={{ minWidth: "11ch" }}
                             options={[
