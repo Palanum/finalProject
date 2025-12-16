@@ -264,7 +264,7 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
             {(fields, { add, remove }) => (
               <>
                 {fields.map(({ key, name, ...rest }) => (
-                  <Form.Item shouldUpdate key={key}>
+                  <Form.Item shouldUpdate style={{ marginBottom: '.5rem' }} key={key}>
                     {() => {
                       const tagValue = form.getFieldValue(['tags', name, 'tag']) || '';
                       const hasContent = tagValue.trim();
@@ -328,14 +328,14 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
           {(fields, { add, remove }) => (
             <Form.Item label="วัตถุดิบ" {...formItemLayout}>
               {fields.map(({ key, name, ...rest }) => (
-                <Form.Item shouldUpdate key={key}>
+                <Form.Item style={{ marginBottom: '.5rem' }} shouldUpdate key={key}>
                   {() => {
                     const ingredientName = form.getFieldValue(['ingredientsList', name, 'name']) || '';
                     const hasContent = ingredientName.trim();
 
                     return (
                       <Space align="baseline" className='full-width'>
-                        <Form.Item {...rest} name={[name, "name"]} rules={[{ required: true }]}>
+                        <Form.Item {...rest} style={{ marginBottom: 0 }} name={[name, "name"]} rules={[{ required: true }]}>
                           <AutoComplete
                             style={{ width: "30ch" }}
                             placeholder="ชื่อวัตถุดิบ"
@@ -350,11 +350,11 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
                           />
                         </Form.Item>
 
-                        <Form.Item {...rest} name={[name, "quantity"]} rules={[{ required: true }]}>
+                        <Form.Item {...rest} style={{ marginBottom: 0 }} name={[name, "quantity"]} rules={[{ required: true }]}>
                           <InputNumber placeholder="จำนวน" />
                         </Form.Item>
 
-                        <Form.Item {...rest} name={[name, "unit"]} rules={[{ required: true }]}>
+                        <Form.Item {...rest} style={{ marginBottom: 0 }} name={[name, "unit"]} rules={[{ required: true }]}>
                           <Select
                             style={{ minWidth: "11ch" }}
                             options={[
@@ -405,7 +405,7 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
           {(fields, { add, remove }) => (
             <Form.Item label="ขั้นตอนการปรุงอาหาร" {...formItemLayout}>
               {fields.map(({ key, name, ...rest }) => (
-                <Form.Item shouldUpdate key={key}>
+                <Form.Item shouldUpdate style={{ marginBottom: '.5rem' }} key={key}>
                   {() => {
                     const stepDescription = form.getFieldValue(['stepsList', name, 'stepDescription']) || '';
                     const stepImages = form.getFieldValue(['stepsList', name, 'stepImages']) || [];
@@ -420,6 +420,7 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
                               name={[name, "stepDescription"]}
                               rules={[{ required: true }]}
                               className="flex-1"
+                              style={{ marginBottom: '.5rem' }}
                             >
                               <TextArea
                                 placeholder="รายละเอียดขั้นตอนการปรุงอาหาร"
@@ -449,6 +450,7 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
                           <Form.Item
                             {...rest}
                             name={[name, "stepImages"]}
+                            style={{ marginBottom: '.5rem' }}
                             valuePropName="fileList"
                             getValueFromEvent={normFile}
                           >
