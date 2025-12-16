@@ -838,14 +838,16 @@ router.get('/:id', async (req, res) => {
 
 
     // Build instructions with images
-    const instructions = recipe.Instructions.map(i => ({
-      id: i.instructionID,
-      text: i.details,
-      images: i.InstructionImgs.map(img => ({
-        id: img.instruction_imgID,
-        url: img.imageURL
+    const instructions = recipe.Instructions
+      .map(i => ({
+        id: i.instructionID,
+        text: i.details,
+        images: i.InstructionImgs.map(img => ({
+          id: img.instruction_imgID,
+          url: img.imageURL
+        }))
       }))
-    }));
+      .sort((a, b) => a.id - b.id);
 
     // Build ingredients & calculate nutrients
     const ingredients = [];
@@ -869,6 +871,8 @@ router.get('/:id', async (req, res) => {
         unit: ing.Unit
       });
     });
+    ingredients.sort((a, b) => a.id - b.id);
+
     const sentData = {
       RecipeID: recipe.RecipeID,
       Title: recipe.Title,
@@ -879,7 +883,7 @@ router.get('/:id', async (req, res) => {
       isLike: recipe.Likes.length > 0,
       user: { id: recipe.User.id, username: recipe.User.username },
       categories: recipe.Categories.map(c => ({
-        id: c.id,
+        id: c.CategoryID,
         name: c.Name
       })),
       instructions,
@@ -892,7 +896,7 @@ router.get('/:id', async (req, res) => {
       },
       comments: commentsTree
     }
-    // console.dir(sentData, { depth: null });
+    console.dir(sentData, { depth: null });
     res.json(sentData);
 
   } catch (err) {
