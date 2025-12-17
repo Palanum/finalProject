@@ -318,8 +318,6 @@ export default function Recipespage() {
                 }
             });
 
-
-
         } catch (err) {
             console.error(err);
             message.error("Something went wrong");
@@ -335,7 +333,7 @@ export default function Recipespage() {
             <Text type="danger">Recipe not found</Text>
         </div>
     );
-    console.dir(recipe);
+    // console.dir(recipe);
     return (
         <div className="set-max-w full-m-0-auto">
             <Card>

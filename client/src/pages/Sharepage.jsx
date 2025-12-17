@@ -73,14 +73,26 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
     return false; // prevent auto upload
   };
 
-  const normFile = (e) =>
-    (Array.isArray(e) ? e : e?.fileList || []).map((f) => ({
+const normFile = (e) => {
+  const list = Array.isArray(e) ? e : e?.fileList || [];
+
+  return list.map((f, index) => {
+    if (f.originFileObj && !f.thumbUrl) {
+      f.thumbUrl = URL.createObjectURL(f.originFileObj);
+    }
+
+    return {
       ...f,
+      // uid: f.uid ?? `step-${Date.now()}-${index}`,
+      // status: "done",
+      // percent: 100,
       url: f.url || (f.response && f.response.url),
       isOld: f.isOld || (!!f.url && !f.originFileObj),
-      new: !f.isOld && !!f.originFileObj,
+      new: !!f.originFileObj,
       tempName: f.originFileObj?.name || f.tempName,
-    }));
+    };
+  });
+};
 
   const handlePreview = (file) => {
     setPreviewImage(
@@ -195,11 +207,12 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
         name="recipe_form"
         className="recipe-form"
         layout="horizontal"
+        scrollToFirstError={{ behavior: "smooth", block: "center" }}
         onFinish={onFinish}
         initialValues={{
           title: initialData?.Title || "",
           time: initialData?.time || "",
-          tags: initialData?.categories?.map((tag) => ({ tag: tag.name })) || [],
+          tags: initialData?.categories?.map((tag) => ({ tag: tag.name })) || [{ tag: "" }],
           ingredientsList:
             initialData?.ingredients || [{ name: "", quantity: "", unit: "กิโลกรัม" }],
           stepsList:
@@ -271,7 +284,7 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
 
                       return (
                         <Space className='flex align-center'>
-                          <Form.Item {...rest} className='mb-2' name={[name, "tag"]} rules={[{ required: true }]}>
+                          <Form.Item {...rest} className='mb-2' name={[name, "tag"]} rules={[{ required: true , message: "โปรดใส่ชื่อแท็ก" }]}>
                             <AutoComplete
                               placeholder="ชื่อแท็ก"
                               style={{ width: "25ch" }}
@@ -423,7 +436,7 @@ export default function Sharepage({ initialData = null, mode = "create" }) {
                             <Form.Item
                               {...rest}
                               name={[name, "stepDescription"]}
-                              rules={[{ required: true }]}
+                              rules={[{ required: true , message: "โปรดใส่รายละเอียดขั้นตอนการปรุงอาหาร" }]}
                               className="flex-1"
                               style={{ marginBottom: '.5rem' }}
                             >
