@@ -20,7 +20,7 @@ library.add(fas, far, fab)
 export default function NavBar({ isLoggedIn }) {
   const [showNavbar, setShowNavbar] = useState(true);
   const [lastScrollY, setLastScrollY] = useState(0);
-  const [count, refreshCount] = useUnreadAlarms();
+  const { count, refresh } = useUnreadAlarms();
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = location.pathname + location.search;
@@ -69,13 +69,13 @@ export default function NavBar({ isLoggedIn }) {
                 <Badge count={count} size="small">
                   <Link
                     to="/profile#alarm"
-                    onClick={() => refreshCount()}
+                    onClick={refresh}
                   >
                     <FontAwesomeIcon icon="fa-solid fa-bell" />
                   </Link>
                 </Badge>
               </li>
-              <li><ProfileMenu count={count} refreshCount={refreshCount} /></li>
+              <li><ProfileMenu count={count} refreshCount={refresh} /></li>
             </>
           ) : (
             <li><Loginbtn /></li>
@@ -141,19 +141,19 @@ function useUnreadAlarms() {
   const { user } = useContext(AuthContext);
   const [count, setCount] = useState(0);
 
-  const fetchCount = () => {
-    if (user) {
-      fetch("/api/users/alarm/count")
-        .then(res => res.json())
-        .then(data => setCount(data.count))
-        .catch(err => console.error("Error fetching alarm count:", err));
-    }
+  const refresh = () => {
+    if (!user) return;
+
+    fetch("/api/users/alarm/count")
+      .then(res => res.json())
+      .then(data => setCount(data.count))
+      .catch(err => console.error(err));
   };
 
   useEffect(() => {
-    fetchCount();
+    refresh();
   }, [user]);
 
-  return [count, fetchCount];
+  return { count, refresh };
 }
 

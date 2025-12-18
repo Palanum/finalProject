@@ -51,8 +51,8 @@ Recipe.hasMany(Comment, { foreignKey: 'RecipeID' });
 // Comments
 Comment.belongsTo(User, { foreignKey: 'UserID' });
 Comment.belongsTo(Recipe, { foreignKey: 'RecipeID' });
-Comment.belongsTo(Comment, { foreignKey: 'ParentCommentID' });
-Comment.hasMany(Comment, { foreignKey: 'ParentCommentID' });
+Comment.belongsTo(Comment, { as: 'Parent', foreignKey: 'ParentCommentID' });
+Comment.hasMany(Comment, { as: 'Replies', foreignKey: 'ParentCommentID' });
 
 // Likes & Favorites
 Like.belongsTo(User, { foreignKey: 'UserID' });

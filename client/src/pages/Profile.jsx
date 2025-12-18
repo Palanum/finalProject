@@ -345,6 +345,9 @@ function AlarmSection() {
         } else if (alarm.type === "comment") {
             color = "purple";
             text = "มีการแสดงความคิดเห็นในสูตรของคุณ";
+        } else if (alarm.type === "reply") {
+            color = "purple";
+            text = "มีการตอบความคิดเห็นของคุณ";
         } else if (alarm.type === "alarm") {
             color = "red";
             text = "การแจ้งเตือน จากผู้ดูแลระบบ";

@@ -325,7 +325,7 @@ router.get("/alarm/count", async (req, res) => {
     const user = await User.findByPk(userId);
     const lastView = user.last_alarm_view || new Date(0);
 
-    const [likesCount, favoritesCount, commentsCount, adminAlarmsCount] = await Promise.all([
+    const [likesCount, favoritesCount, commentsCount, repliesCount, adminAlarmsCount] = await Promise.all([
       Like.count({
         include: { model: Recipe, where: { UserID: userId } },
         where: { UserID: { [Op.ne]: userId }, CreatedAt: { [Op.gt]: lastView } }
@@ -334,16 +334,36 @@ router.get("/alarm/count", async (req, res) => {
         include: { model: Recipe, where: { UserID: userId } },
         where: { UserID: { [Op.ne]: userId }, CreatedAt: { [Op.gt]: lastView } }
       }),
+      //  Comment ใหม่
       Comment.count({
         include: { model: Recipe, where: { UserID: userId } },
-        where: { UserID: { [Op.ne]: userId }, CreatedAt: { [Op.gt]: lastView } }
+        where: {
+          UserID: { [Op.ne]: userId },
+          ParentCommentID: null,
+          CreatedAt: { [Op.gt]: lastView }
+        }
+      }),
+
+      // Reply ต่อคอมเมนต์
+      Comment.count({
+        include: [{
+          model: Comment,
+          as: 'Parent',
+          required: true,
+          where: { UserID: userId },
+        }],
+        where: {
+          UserID: { [Op.ne]: userId },
+          ParentCommentID: { [Op.ne]: null },
+          CreatedAt: { [Op.gt]: lastView }
+        }
       }),
       Report.count({
         where: { reported_id: userId, reported_type: { [Op.like]: "alarm%" }, created_on: { [Op.gt]: lastView } },
       })
     ]);
 
-    res.json({ count: likesCount + favoritesCount + commentsCount + adminAlarmsCount });
+    res.json({ count: likesCount + favoritesCount + commentsCount + repliesCount + adminAlarmsCount });
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: "Server error" });
@@ -363,7 +383,7 @@ router.get("/alarm", async (req, res) => {
     const lastView = user.last_alarm_view || new Date(0);
 
     // Run queries in parallel
-    const [likes, favorites, comments, adminAlarms] = await Promise.all([
+    const [likes, favorites, comments, replies, adminAlarms] = await Promise.all([
       Like.findAll({
         include: [
           { model: Recipe, where: { UserID: userId }, attributes: ['Title', 'ImageURL'] },
@@ -378,12 +398,34 @@ router.get("/alarm", async (req, res) => {
         ],
         where: { UserID: { [Op.ne]: userId } }
       }),
+      // comment ใหม่ในสูตร
       Comment.findAll({
         include: [
           { model: Recipe, where: { UserID: userId }, attributes: ['Title', 'ImageURL'] },
           { model: User, attributes: ['username'] }
         ],
-        where: { UserID: { [Op.ne]: userId }, type: 'normal' }
+        where: {
+          UserID: { [Op.ne]: userId },
+          ParentCommentID: null,
+        }
+      }),
+
+      // replies
+      Comment.findAll({
+        include: [
+          {
+            model: Comment,
+            as: 'Parent',
+            required: true,
+            where: { UserID: userId },
+          },
+          { model: User, attributes: ['username'] },
+          { model: Recipe, attributes: ['Title', 'ImageURL'] },
+        ],
+        where: {
+          UserID: { [Op.ne]: userId },
+          ParentCommentID: { [Op.ne]: null },
+        }
       }),
       Report.findAll({
         where: { reported_id: userId, reported_type: { [Op.like]: "alarm%" } },
@@ -440,6 +482,17 @@ router.get("/alarm", async (req, res) => {
         Content: null,
         CreatedAt: c.CreatedAt,
         isRead: c.CreatedAt <= lastView
+      })),
+      ...replies.map(r => ({
+        type: 'reply',
+        actorUsername: r.User.username,
+        RecipeID: r.RecipeID,
+        recipeTitle: r.Recipe?.Title || null,
+        recipeImage: r.Recipe?.ImageURL || null,
+        Content: null,
+        parentContent: r.Parent.Content,
+        CreatedAt: r.CreatedAt,
+        isRead: r.CreatedAt <= lastView,
       })),
       ...adminAlarms.map(a => {
         let parsedRecipeId = null;

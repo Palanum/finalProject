@@ -813,7 +813,7 @@ router.get('/:id', async (req, res) => {
           createdAt: c.CreatedAt,
           user: c.User
             ? { id: c.User.id, username: c.User.username }
-            : { id: null, username: "deleted User" },
+            : { id: null, username: "[deleted]" },
           replies: []
         });
       });
@@ -825,6 +825,7 @@ router.get('/:id', async (req, res) => {
         const comment = commentsMap.get(c.CommentID);
         if (c.ParentCommentID) {
           const parent = commentsMap.get(c.ParentCommentID);
+          if (!comment) return;
           if (parent) {
             parent.replies.push(comment);
           } else {
