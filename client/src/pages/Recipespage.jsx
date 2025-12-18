@@ -30,7 +30,7 @@ export default function Recipespage() {
 
     const toggleFavorite = async () => {
         if (!user) {
-            message.warning("Please login to use favorites");
+            message.warning("โปรดเข้าสู่ระบบ เพื่อเพิ่มรายการโปรดในลิสของคุณ");
             return;
         }
 
@@ -49,7 +49,7 @@ export default function Recipespage() {
             if (!res.ok) {
                 const text = await res.text();
                 console.error("Favorite API failed:", text);
-                message.error("Something went wrong");
+                message.error("เกิดข้อผิดพลาด");
                 // Revert UI
                 setRecipe(prev => ({ ...prev, isFavorite: !prev.isFavorite }));
                 return;
@@ -62,7 +62,7 @@ export default function Recipespage() {
 
         } catch (err) {
             console.error("Fetch error:", err);
-            message.error("Something went wrong");
+            message.error("เกิดข้อผิดพลาด");
             // Revert UI
             setRecipe(prev => ({ ...prev, isFavorite: !prev.isFavorite }));
         }
@@ -90,7 +90,7 @@ export default function Recipespage() {
             if (!res.ok) {
                 const text = await res.text();
                 console.error("Like API failed:", text);
-                message.error("Something went wrong");
+                message.error("เกิดข้อผิดพลาด");
                 // Revert UI
                 setRecipe(prev => ({ ...prev, isLike: !prev.isLike }));
                 return;
@@ -103,7 +103,7 @@ export default function Recipespage() {
 
         } catch (err) {
             console.error("Fetch error:", err);
-            message.error("Something went wrong");
+            message.error("เกิดข้อผิดพลาด");
             // Revert UI
             setRecipe(prev => ({ ...prev, isLike: !prev.isLike }));
         }
@@ -190,7 +190,7 @@ export default function Recipespage() {
             if (!res.ok) {
                 const text = await res.text();
                 console.error("Comment API failed:", text);
-                message.error("Failed to post comment");
+                message.error("เกิดข้อผิดพลาด ไม่สามารถแสดงความคิดเห็นได้");
                 return;
             }
 
@@ -222,7 +222,7 @@ export default function Recipespage() {
             message.success(parentId ? "Reply สำเร็จ!" : "แสดงความคิดเห็นสำเร็จ!");
         } catch (err) {
             console.error(err);
-            message.error("Something went wrong");
+            message.error("เกิดข้อผิดพลาด");
         }
     };
 
@@ -305,11 +305,11 @@ export default function Recipespage() {
                         if (!res.ok) {
                             const text = await res.text();
                             console.error("Report API failed:", text);
-                            message.error("Failed to submit report");
+                            message.error("เกิดข้อผิดพลาด รายงานไม่สำเร็จ!");
                             return;
                         }
 
-                        message.success("Report submitted!");
+                        message.success("ส่งรายงานแล้ว!");
                         handleCloseReport();
                     } catch (err) {
                         console.error(err);
@@ -320,7 +320,7 @@ export default function Recipespage() {
 
         } catch (err) {
             console.error(err);
-            message.error("Something went wrong");
+            message.error("เกิดข้อผิดพลาด");
         }
     };
 
@@ -509,10 +509,10 @@ export default function Recipespage() {
                     style={{ marginBottom: 16 }}
                     tabBarExtraContent={
                         <Space>
-                            <span style={{ cursor: "pointer" }} onClick={toggleFavorite}>
+                            <span style={{ cursor: "pointer", userSelect: "none" }} onClick={toggleFavorite}>
                                 <FontAwesomeIcon icon={recipe.isFavorite ? ["fas", "star"] : ["far", "star"]} /> เพิ่มรายการโปรด
                             </span>
-                            <span style={{ cursor: "pointer" }} onClick={toggleLike}>
+                            <span style={{ cursor: "pointer", userSelect: "none" }} onClick={toggleLike}>
                                 <FontAwesomeIcon icon={recipe.isLike ? ["fas", "thumbs-up"] : ["far", "thumbs-up"]} /> Like
                             </span>
                         </Space>
@@ -573,7 +573,7 @@ export default function Recipespage() {
                                 dataSource={recipe.instructions}
                                 renderItem={(inst, index) => (
                                     <List.Item>
-                                        <Paragraph className="flex flex-column gap-2" style={{marginBottom:' 0.5rem'}}>
+                                        <Paragraph className="flex flex-column gap-2" style={{ marginBottom: ' 0.5rem' }}>
                                             {index + 1}. {inst.text}
                                             <div className="flex align-center gap-2">
                                                 {inst.images.map((img, j) => (

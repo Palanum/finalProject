@@ -27,7 +27,7 @@ router.get('/home', async (req, res) => {
         { model: Category, through: { attributes: [] }, attributes: ['Name'] } // many-to-many
       ],
       order: [['RecipeID', 'DESC']],
-      limit: 10
+      limit: 12
     });
 
     const formattedRecipes = recipes.map(r => ({
