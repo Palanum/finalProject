@@ -1061,7 +1061,7 @@ function ReportSection() {
                                 </ul>
                             ) : (
                                 <p style={{ color: "gray" }}>
-                                    ไมามีการแนบหลักฐาน
+                                    ไม่มีการแนบหลักฐาน
                                 </p>
                             )}
                         </div>
